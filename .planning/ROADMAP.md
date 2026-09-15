@@ -32,7 +32,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. A buy with insufficient cash or a sell exceeding owned shares is rejected with a clear error and no state change
   4. `GET /api/portfolio` returns current cash, positions with unrealized P&L, and total value; `GET /api/portfolio/history` returns value snapshots recorded every 30s and immediately after each trade
   5. `POST /api/watchlist` adds a recognized ticker (400 on unrecognized) and `DELETE /api/watchlist/{ticker}` removes it, with both persisted in SQLite across restarts
-**Plans**: TBD
+**Plans:** 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Walking skeleton: one real market BUY end-to-end, HTTP → lock-guarded service → SQLite → response (wave 1)
+- [ ] 01-02-PLAN.md — Market SELL path and state-preserving rejections for insufficient cash/shares (wave 2)
+- [ ] 01-03-PLAN.md — Watchlist add/remove/list endpoints plus the chat_messages schema (wave 2)
+- [ ] 01-04-PLAN.md — Portfolio valuation endpoints and the snapshot history recorder (wave 3)
 
 ### Phase 2: Core Trading UI
 **Goal**: A user can watch live prices, place trades, and see their portfolio update in the browser — the core agentic trading loop (watch → trade → see it reflected) is usable end-to-end
@@ -107,7 +113,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
-| 1. Backend Trading Engine | TBD | Not started | - |
+| 1. Backend Trading Engine | 0 / 4 | Planned | - |
 | 2. Core Trading UI | TBD | Not started | - |
 | 3. AI Chat Copilot | TBD | Not started | - |
 | 4. Portfolio Visualization | TBD | Not started | - |
