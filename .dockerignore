@@ -1,0 +1,31 @@
+# Keep host-built artifacts out of the build context so image layers are
+# built fresh for the container's platform (Linux) instead of clobbered by
+# whatever the host OS produced (e.g. a Windows/macOS backend/.venv or
+# native frontend/node_modules binaries).
+
+.git/
+.github/
+
+# Python
+**/__pycache__/
+**/*.pyc
+**/.venv/
+**/.pytest_cache/
+**/.ruff_cache/
+**/*.egg-info/
+
+# Node / Next.js
+**/node_modules/
+**/.next/
+**/out/
+
+# Runtime data / env
+db/*.db
+db/*.db-journal
+.env
+
+# Docs, misc
+planning/
+test/
+README.md
+LICENSE

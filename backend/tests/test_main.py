@@ -9,7 +9,7 @@ from app.market.simulator import SimulatorMarketDataSource
 
 
 def test_lifespan_wires_simulator_by_default(monkeypatch, tmp_path):
-    monkeypatch.setattr("app.db.watchlist.DB_PATH", tmp_path / "finally.db")
+    monkeypatch.setattr("app.db.connection.DB_PATH", tmp_path / "finally.db")
     monkeypatch.delenv("MASSIVE_API_KEY", raising=False)
 
     app = create_app()
@@ -26,7 +26,7 @@ def test_lifespan_wires_massive_when_api_key_set(monkeypatch, tmp_path):
     respx.get(url__regex=r".*/v2/snapshot/.*").mock(
         return_value=httpx.Response(200, json={"tickers": []})
     )
-    monkeypatch.setattr("app.db.watchlist.DB_PATH", tmp_path / "finally.db")
+    monkeypatch.setattr("app.db.connection.DB_PATH", tmp_path / "finally.db")
     monkeypatch.setenv("MASSIVE_API_KEY", "test-key")
 
     app = create_app()

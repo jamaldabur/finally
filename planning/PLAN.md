@@ -82,43 +82,7 @@ The user runs a single Docker command (or a provided start script). A browser op
 
 ---
 
-## 4. Directory Structure
-
-```
-finally/
-├── frontend/                 # Next.js TypeScript project (static export)
-├── backend/                  # FastAPI uv project (Python)
-│   └── schema/                # Schema definitions, seed data, migration logic
-├── planning/                 # Project-wide documentation for agents
-│   ├── PLAN.md               # This document
-│   └── ...                   # Additional agent reference docs
-├── scripts/
-│   ├── start_mac.sh          # Launch Docker container (macOS/Linux)
-│   ├── stop_mac.sh           # Stop Docker container (macOS/Linux)
-│   ├── start_windows.ps1     # Launch Docker container (Windows PowerShell)
-│   └── stop_windows.ps1      # Stop Docker container (Windows PowerShell)
-├── test/                     # Playwright E2E tests + docker-compose.test.yml
-├── db/                       # Volume mount target (SQLite file lives here at runtime)
-│   └── .gitkeep              # Directory exists in repo; finally.db is gitignored
-├── Dockerfile                # Multi-stage build (Node → Python)
-├── docker-compose.yml        # Optional convenience wrapper
-├── .env                      # Environment variables (gitignored, .env.example committed)
-└── .gitignore
-```
-
-### Key Boundaries
-
-- **`frontend/`** is a self-contained Next.js project. It knows nothing about Python. It talks to the backend via `/api/*` endpoints and `/api/stream/*` SSE endpoints. Internal structure is up to the Frontend Engineer agent.
-- **`backend/`** is a self-contained uv project with its own `pyproject.toml`. It owns all server logic including database initialization, schema, seed data, API routes, SSE streaming, market data, and LLM integration. Internal structure is up to the Backend/Market Data agents.
-- **`backend/schema/`** contains schema SQL definitions and seed logic. The backend lazily initializes the database on first request — creating tables and seeding default data if the SQLite file doesn't exist or is empty. (Named `schema/` rather than `db/` to avoid confusion with the top-level `db/` runtime data directory below.)
-- **`db/`** at the top level is the runtime volume mount point. The SQLite file (`db/finally.db`) is created here by the backend and persists across container restarts via Docker volume.
-- **`planning/`** contains project-wide documentation, including this plan. All agents reference files here as the shared contract.
-- **`test/`** contains Playwright E2E tests and supporting infrastructure (e.g., `docker-compose.test.yml`). Unit tests live within `frontend/` and `backend/` respectively, following each framework's conventions.
-- **`scripts/`** contains start/stop scripts that wrap Docker commands.
-
----
-
-## 5. Environment Variables
+## 4. Environment Variables
 
 ```bash
 # Required: OpenRouter API key for LLM chat functionality
@@ -141,7 +105,7 @@ LLM_MOCK=false
 
 ---
 
-## 6. Market Data
+## 5. Market Data
 
 ### Two Implementations, One Interface
 
@@ -155,7 +119,7 @@ Both the simulator and the Massive client implement the same abstract interface.
 - Occasional random "events" — sudden 2-5% moves on a ticker for drama
 - Starts from realistic seed prices (e.g., AAPL ~$190, GOOGL ~$175, etc.)
 - Runs as an in-process background task — no external dependencies
-- Only tickers with a defined seed price/sector are supported. Watchlist additions (manual or LLM-driven) for an unrecognized ticker are rejected with an error rather than silently accepted — see §8
+- Only tickers with a defined seed price/sector are supported. Watchlist additions (manual or LLM-driven) for an unrecognized ticker are rejected with an error rather than silently accepted.
 
 ### Massive API (Optional)
 
@@ -182,7 +146,7 @@ Both the simulator and the Massive client implement the same abstract interface.
 
 ---
 
-## 7. Database
+## 6. Database
 
 ### SQLite with Lazy Initialization
 
@@ -247,67 +211,43 @@ All tables include a `user_id` column defaulting to `"default"`. This is hardcod
 
 ---
 
-## 8. API Endpoints
+## 7. LLM Integration
 
-### Market Data
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/stream/prices` | SSE stream of live price updates |
-
-### Portfolio
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/portfolio` | Current positions, cash balance, total value, unrealized P&L |
-| POST | `/api/portfolio/trade` | Execute a trade: `{ticker, quantity, side}` |
-| GET | `/api/portfolio/history` | Portfolio value snapshots over time (for P&L chart) |
-
-### Watchlist
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/watchlist` | Current watchlist tickers with latest prices |
-| POST | `/api/watchlist` | Add a ticker: `{ticker}`. Returns 400 if the ticker isn't a recognized symbol (see §6) |
-| DELETE | `/api/watchlist/{ticker}` | Remove a ticker |
-
-### Chat
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/chat` | Recent conversation history (for hydrating the chat panel on page load) |
-| POST | `/api/chat` | Send a message, receive complete JSON response (message + executed actions) |
-
-### System
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/health` | Health check (for Docker/deployment) |
-
----
-
-## 9. LLM Integration
-
-When writing code to make calls to LLMs, use litellm-stream skill to use LiteLLM via OpenRouter to the `openrouter/openai/gpt-oss-120b` model. Structured Outputs should be used to interpret the results.
+When writing code to make calls to LLMs, use litellm-stream skill to use LiteLLM via OpenRouter to the `openrouter/free` model (OpenRouter's own free-model auto-router — it picks among free models on OpenRouter, filtering for ones that support what a given request needs). A different, non-router free model is kept as a last-resort fallback in case the router itself has trouble; see the model constants in `backend/app/llm/client.py` for specifics, since which fallback is best may change over time.
 
 There is an OPENROUTER_API_KEY in the .env file in the project root.
 
 ### How It Works
 
-When the user sends a chat message, the backend:
+Structured output (one JSON object covering both the conversational reply and any trades/watchlist changes) fundamentally can't stream usefully — a half-formed JSON blob isn't parseable or displayable mid-stream. So a chat turn is two separate LLM calls, not one, fired concurrently:
 
 1. Loads the user's current portfolio context (cash, positions with P&L, watchlist with live prices, total portfolio value)
 2. Loads recent conversation history from the `chat_messages` table
-3. Constructs a prompt with a system message, portfolio context, conversation history, and the user's new message
-4. Calls the LLM via LiteLLM → OpenRouter, requesting structured output, using the litellm-stream skill. The call is non-streaming — the full structured response must be parsed as one JSON object before anything downstream can happen, so there's nothing to stream to the client; `POST /api/chat` returns a single complete response (see §8)
-5. Parses the complete structured JSON response
-6. Auto-executes any trades or watchlist changes specified in the response, through the same validation function used by `POST /api/portfolio/trade` and `POST /api/watchlist` — there is exactly one code path that validates and applies a trade or watchlist change, whether it originates from the trade bar or from chat
-7. Annotates each requested trade/watchlist change with its outcome (`executed` or `error` + reason). Note the LLM's `message` text is written *before* execution happens, so it can't reference execution outcomes — outcomes are reported back to the frontend as structured data alongside `message`, not folded into it. The frontend renders them as inline confirmation/error badges per action (§10), separate from the chat bubble text
-8. Stores the message and the annotated actions in `chat_messages`
-9. Returns the complete JSON response (message + annotated actions) to the frontend
+3. Constructs two prompts sharing that context and history: a conversational one (system message + context + history + the user's new message, no structured output) and an actions one (a different system message asking only for trades/watchlist changes as JSON, same context + history + message)
+4. Fires both calls concurrently:
+   - The conversational call has no `response_format` — it's plain natural-language text, genuinely streamed token-by-token via LiteLLM's native async streaming, exposed all the way out to the HTTP response as it's generated (see "Streaming Wire Contract" below)
+   - The actions call is structured output (`response_format` covering just `trades`/`watchlist_changes` — no `message` field, since that's the conversational call's job), non-streaming from the caller's point of view (LiteLLM is still asked to stream internally per the litellm-stream skill's structured-output pattern, but the caller just gets the final parsed result)
+5. Once the streamed text completes and the actions call resolves, auto-executes any trades or watchlist changes specified in the response, through the same validation function used by `POST /api/portfolio/trade` and `POST /api/watchlist` — there is exactly one code path that validates and applies a trade or watchlist change, whether it originates from the trade bar or from chat
+6. Annotates each requested trade/watchlist change with its outcome (`executed` or `error` + reason). The frontend renders them as inline confirmation/error badges per action (§8), separate from the chat bubble text
+7. Stores the assembled message and the annotated actions in `chat_messages`
+8. Sends a final event with the complete assembled message plus annotated actions (see below)
 
-### Structured Output Schema
+### Streaming Wire Contract
 
-The LLM is instructed to respond with JSON matching this schema:
+`POST /api/chat` responds as `text/event-stream` (same plain-async-generator + `StreamingResponse` approach as `GET /api/stream/prices`, no SSE helper library):
+
+- `event: delta` — `data: {"text": "<chunk of the message being generated>"}` — one per streamed piece of the conversational reply, in order.
+- `event: done` — `data: {"message": "<full assembled message text>", "trades": [...annotated with status/reason], "watchlist_changes": [...annotated]}` — exactly one, final, after streaming text is complete and actions have been determined and executed.
+- On any failure partway through (either call), still emits a `done` event with a safe fallback (an apologetic message and/or empty actions) rather than dropping the connection.
+
+`GET /api/chat` (history hydration) is unaffected by any of this — still a single complete JSON response.
+
+### Structured Output Schema (Actions Call)
+
+The actions call is instructed to respond with JSON matching this schema:
 
 ```json
 {
-  "message": "Your conversational response to the user",
   "trades": [
     {"ticker": "AAPL", "side": "buy", "quantity": 10}
   ],
@@ -317,9 +257,10 @@ The LLM is instructed to respond with JSON matching this schema:
 }
 ```
 
-- `message` (required): The conversational text shown to the user
 - `trades` (optional): Array of trades to auto-execute. Each trade goes through the same validation as manual trades (sufficient cash for buys, sufficient shares for sells)
 - `watchlist_changes` (optional): Array of watchlist modifications
+
+As a cost/rate-limit optimization, the actions call can be skipped entirely (returning no actions immediately) for a message that obviously isn't asking for a trade or watchlist change — this halves real LLM call volume for purely conversational messages against a free router that can get congested. A cheap heuristic is sufficient; false negatives just mean occasionally missing an action, which degrades no worse than a malformed response already does.
 
 ### Auto-Execution
 
@@ -328,28 +269,24 @@ Trades specified by the LLM execute automatically — no confirmation dialog. Th
 - It creates an impressive, fluid demo experience
 - It demonstrates agentic AI capabilities — the core theme of the course
 
-If a trade fails validation (e.g., insufficient cash), it is reported back as an `error` outcome on that action (see §9 "How It Works," step 7) — shown to the user as an inline badge next to the chat message, not woven into the LLM's own text.
+If a trade fails validation (e.g., insufficient cash), it is reported back as an `error` outcome on that action — shown to the user as an inline badge next to the chat message, not woven into the LLM's own text.
 
 ### System Prompt Guidance
 
-The LLM should be prompted as "FinAlly, an AI trading assistant" with instructions to:
-- Analyze portfolio composition, risk concentration, and P&L
-- Suggest trades with reasoning
-- Execute trades when the user asks or agrees
-- Manage the watchlist proactively
-- Be concise and data-driven in responses
-- Always respond with valid structured JSON
+The conversational call's system prompt should establish "FinAlly, an AI trading assistant" with instructions to analyze portfolio composition/risk/P&L, suggest trades with reasoning, and be concise and data-driven — responding in plain natural language, not JSON. The actions call's system prompt is narrower: given the same context, decide only what trades/watchlist changes (if any) the user is asking for or has clearly agreed to, responding only with valid JSON matching its schema.
+
+A free-model router's underlying model selection can vary per request, and not every model honors `response_format` equally reliably — code handling the actions call's response should be prepared for occasional non-conforming output (e.g. JSON wrapped in a markdown code fence) and recover what it reasonably can rather than discarding a valid result just because of incidental wrapping.
 
 ### LLM Mock Mode
 
-When `LLM_MOCK=true`, the backend returns deterministic mock responses instead of calling OpenRouter. This enables:
+When `LLM_MOCK=true`, the backend returns deterministic mock responses instead of calling OpenRouter — including simulating the streaming behavior (the mock conversational reply is chunked into several `delta` events rather than sent as one blob), so the real streaming UI can be exercised without hitting the live API. This enables:
 - Fast, free, reproducible E2E tests
 - Development without an API key
 - CI/CD pipelines
 
 ---
 
-## 10. Frontend Design
+## 8. Frontend Design
 
 ### Layout
 
@@ -361,7 +298,7 @@ The frontend is a single-page application with a dense, terminal-inspired layout
 - **P&L chart** — line chart showing total portfolio value over time, using data from `portfolio_snapshots`
 - **Positions table** — tabular view of all positions: ticker, quantity, avg cost, current price, unrealized P&L, % change
 - **Trade bar** — simple input area: ticker field, quantity field, buy button, sell button. Market orders, instant fill.
-- **AI chat panel** — docked/collapsible sidebar. On mount, fetches `GET /api/chat` to hydrate prior conversation history so refreshing the page doesn't lose it. Message input, scrolling conversation history, loading indicator while waiting for LLM response. Trade executions and watchlist changes shown inline as confirmations, each labeled success or error per §9.
+- **AI chat panel** — docked/collapsible sidebar. On mount, fetches `GET /api/chat` to hydrate prior conversation history so refreshing the page doesn't lose it. Message input, scrolling conversation history, loading indicator while waiting for LLM response. Trade executions and watchlist changes shown inline as confirmations, each labeled success or error per §7.
 - **Header** — portfolio total value (updating live), connection status indicator, cash balance
 
 ### Technical Notes
@@ -374,25 +311,9 @@ The frontend is a single-page application with a dense, terminal-inspired layout
 
 ---
 
-## 11. Docker & Deployment
+## 9. Docker & Deployment
 
-### Multi-Stage Dockerfile
-
-```
-Stage 1: Node 20 slim
-  - Copy frontend/
-  - npm install && npm run build (produces static export)
-
-Stage 2: Python 3.12 slim
-  - Install uv
-  - Copy backend/
-  - uv sync (install Python dependencies from lockfile)
-  - Copy frontend build output into a static/ directory
-  - Expose port 8000
-  - CMD: uvicorn serving FastAPI app
-```
-
-FastAPI serves the static frontend files and all API routes on port 8000.
+FastAPI serves the static frontend files and all API routes on port 8000. See the repository's `Dockerfile` for the current multi-stage build.
 
 ### Docker Volume
 
@@ -426,7 +347,7 @@ The container is designed to deploy to AWS App Runner, Render, or any container 
 
 ---
 
-## 12. Testing Strategy
+## 10. Testing Strategy
 
 ### Unit Tests (within `frontend/` and `backend/`)
 

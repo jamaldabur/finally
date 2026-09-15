@@ -77,7 +77,7 @@ The single most useful endpoint for FinAlly's watchlist-poll loop: one request r
 known state" for an arbitrary set of tickers.
 
 **Query parameters**:
-- `tickers` — comma-separated, case-sensitive list, e.g. `AAPL,GOOGL,MSFT`. Omit for the entire
+- `tickers` — comma-separated, case-insensitive list, e.g. `AAPL,GOOGL,MSFT`. Omit for the entire
   market (10,000+ symbols — never do this for a 10-50 ticker watchlist).
 - `include_otc` — bool, default `false`.
 

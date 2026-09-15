@@ -4,7 +4,7 @@ from app.main import create_app
 
 
 def test_health_returns_ok(monkeypatch, tmp_path):
-    monkeypatch.setattr("app.db.watchlist.DB_PATH", tmp_path / "finally.db")
+    monkeypatch.setattr("app.db.connection.DB_PATH", tmp_path / "finally.db")
     monkeypatch.delenv("MASSIVE_API_KEY", raising=False)
 
     app = create_app()

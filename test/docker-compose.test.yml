@@ -1,0 +1,27 @@
+name: finally-test
+
+services:
+  finally:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: finally:e2e-test
+    ports:
+      - "8811:8000"
+    environment:
+      - OPENROUTER_API_KEY=unused-in-mock-mode
+      - MASSIVE_API_KEY=
+      - LLM_MOCK=true
+    # Throwaway, isolated volume scoped to this compose project (namespaced
+    # "finally-test_finally-test-data") — never the "finally-data" volume the
+    # dev stack / other engineers use for manual testing.
+    volumes:
+      - finally-test-data:/app/db
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+volumes:
+  finally-test-data:

@@ -10,7 +10,7 @@ Full spec: [`planning/PLAN.md`](planning/PLAN.md)
 - **Backend**: FastAPI (Python, managed with `uv`)
 - **Database**: SQLite, lazily initialized on first run
 - **Real-time data**: Server-Sent Events (`/api/stream/prices`)
-- **AI**: LiteLLM → OpenRouter (`openrouter/openai/gpt-oss-120b`), structured outputs for trade execution
+- **AI**: LiteLLM → OpenRouter (`openrouter/google/gemma-4-31b-it:free`), structured outputs for trade execution
 - **Deployment**: single Docker container, one port (8000)
 
 ## Status

@@ -23,7 +23,7 @@ Use code like these examples.
 
 ```python
 from litellm import completion
-MODEL = "openrouter/openai/gpt-oss-120b"
+MODEL = "openrouter/google/gemma-4-31b-it:free"
 ```
 
 ### Code to call for a text response

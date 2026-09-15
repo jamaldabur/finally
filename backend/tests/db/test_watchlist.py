@@ -4,13 +4,6 @@ from app.db import watchlist as watchlist_module
 from app.market.simulator import DEFAULT_WATCHLIST
 
 
-@pytest.fixture(autouse=True)
-def isolated_db(monkeypatch, tmp_path):
-    """Every test in this module gets its own throwaway SQLite file — never
-    touch the real db/finally.db during tests."""
-    monkeypatch.setattr(watchlist_module, "DB_PATH", tmp_path / "finally.db")
-
-
 @pytest.mark.asyncio
 async def test_init_db_seeds_default_watchlist():
     await watchlist_module.init_db()
@@ -45,3 +38,56 @@ async def test_get_watchlist_tickers_for_unknown_user_is_empty():
     await watchlist_module.init_db()
     tickers = await watchlist_module.get_watchlist_tickers(user_id="someone-else")
     assert tickers == []
+
+
+@pytest.mark.asyncio
+async def test_add_ticker_adds_a_new_ticker():
+    await watchlist_module.init_db()
+    added = await watchlist_module.add_ticker("default", "PYPL")
+    assert added is True
+    tickers = await watchlist_module.get_watchlist_tickers()
+    assert "PYPL" in tickers
+
+
+@pytest.mark.asyncio
+async def test_add_ticker_returns_false_for_duplicate():
+    await watchlist_module.init_db()
+    await watchlist_module.add_ticker("default", "PYPL")
+    added_again = await watchlist_module.add_ticker("default", "PYPL")
+    assert added_again is False
+    tickers = await watchlist_module.get_watchlist_tickers()
+    assert tickers.count("PYPL") == 1
+
+
+@pytest.mark.asyncio
+async def test_add_ticker_does_not_validate_ticker_symbol():
+    # Pure storage op — symbol validation is the caller's job (PLAN.md §6/§8).
+    await watchlist_module.init_db()
+    added = await watchlist_module.add_ticker("default", "NOTAREALTICKER")
+    assert added is True
+
+
+@pytest.mark.asyncio
+async def test_remove_ticker_removes_existing_ticker():
+    await watchlist_module.init_db()
+    removed = await watchlist_module.remove_ticker("default", "AAPL")
+    assert removed is True
+    tickers = await watchlist_module.get_watchlist_tickers()
+    assert "AAPL" not in tickers
+
+
+@pytest.mark.asyncio
+async def test_remove_ticker_returns_false_when_absent():
+    await watchlist_module.init_db()
+    removed = await watchlist_module.remove_ticker("default", "NOPE")
+    assert removed is False
+
+
+@pytest.mark.asyncio
+async def test_add_and_remove_ticker_scoped_per_user():
+    await watchlist_module.init_db()
+    await watchlist_module.add_ticker("someone-else", "PYPL")
+    default_tickers = await watchlist_module.get_watchlist_tickers()
+    assert "PYPL" not in default_tickers
+    other_tickers = await watchlist_module.get_watchlist_tickers(user_id="someone-else")
+    assert other_tickers == ["PYPL"]

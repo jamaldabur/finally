@@ -1,0 +1,236 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0b0f16;
+  --surface: #161d29;
+  --surface-raised: #1f2836;
+  --border: #2a3342;
+  --foreground: #e8edf4;
+  --muted: #8b96a8;
+
+  --accent-yellow: #ecad0a;
+  --accent-blue: #209dd7;
+  --accent-purple: #753991;
+
+  --up: #3fb950;
+  --down: #e5534b;
+
+  --shadow-color: 0deg 0% 0%;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent-yellow: var(--accent-yellow);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-purple: var(--accent-purple);
+  --color-up: var(--up);
+  --color-down: var(--down);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-sans);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Numbers stay legible and well-aligned without needing a separate monospace
+   typeface — one warm, friendly font family used everywhere, per the brief. */
+.font-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.24), 0 8px 24px -12px rgba(0, 0, 0, 0.45);
+}
+
+/* A brief accent pulse marking "just ticked" — separate from FlashPrice's
+   persistent up/down text color, which signals current direction at rest. */
+@keyframes flash-up {
+  0% {
+    background-color: rgba(63, 185, 80, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes flash-down {
+  0% {
+    background-color: rgba(229, 83, 75, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.flash-up {
+  animation: flash-up 450ms ease-out;
+}
+
+.flash-down {
+  animation: flash-down 450ms ease-out;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+.skeleton-pulse {
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+/* Below the desktop breakpoint, the workspace is a simple stacked column that
+   scrolls with the page — a fixed one-screen layout would be illegibly cramped
+   on a narrow or short viewport. Each panel gets a comfortable fixed height. */
+.workspace-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.workspace-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+}
+
+.workspace-watchlist {
+  height: 280px;
+}
+.workspace-chart {
+  height: 300px;
+}
+.workspace-pnl {
+  height: 260px;
+}
+.workspace-heatmap {
+  height: 320px;
+}
+.workspace-tradepos {
+  height: 520px;
+}
+.workspace-chat {
+  height: 460px;
+}
+
+/* At desktop widths the app tries to fit one screen, but this is a soft target,
+   not an absolute — real browser chrome (tabs, address bar, OS taskbar) eats
+   real pixels a headless viewport doesn't have to account for, so the layout
+   must degrade to a scroll rather than silently clip anything.
+
+   `.workspace-shell` gets a genuinely *definite* `height: 100dvh` (not
+   `min-height`) plus its own `overflow-y: auto`. That's a deliberate choice,
+   not an oversight: an early version of this used `min-height` so any
+   overflow would fall through to a real `document`-level scroll, but CSS
+   Grid's `fr` tracks only distribute a *fixed* leftover space correctly when
+   their container has a definite height. Against an indefinite one (which is
+   what a flex item sized purely by `flex-grow` effectively is, once nested
+   grid layout asks it for a height) every `fr` track silently falls back to
+   sizing itself by its content's natural (max-content) size instead — and
+   because the chat row is spanned by the chat panel, whose message list can
+   grow arbitrarily long over a session, that blew the whole grid up to
+   whatever height the *entire accumulated chat history* wanted, tens of
+   thousands of pixels tall. A definite `height` on the shell is what keeps
+   `fr` tracks bounded and predictable; `overflow-y: auto` on that same
+   element is what keeps the reachability guarantee — if the grid's row
+   floors (below) sum to more than 100dvh, this scrolls instead of clipping.
+   It behaves identically to a normal page scroll (same position, same mouse
+   wheel handling) since it spans the full viewport and is the only
+   scrollable ancestor; `document.documentElement.scrollHeight` just isn't
+   the right place to check for it — check this element's own
+   `scrollHeight`/`clientHeight`, or whether the control you care about is
+   reachable via `scrollIntoView`, instead.
+
+   Every grid row below has a `minmax(floor, share)`: the floor is a hard
+   minimum the row is never squeezed under, and the fr share only controls how
+   *extra* space (once every floor is met) gets distributed. The trade+
+   positions row's floor is a measured pixel value (the trade ticket's real
+   rendered height, ~266px, plus margin) — deliberately not `min-content`,
+   which (per the note above) would reintroduce the same spanning-item
+   ballooning bug for this specific row. Watchlist, chart, pnl, and heatmap
+   get their own explicit, more compressible floors — they're reference
+   material, not primary controls, so they're first to give up space. */
+@media (min-width: 1024px) {
+  .workspace-shell {
+    height: 100dvh;
+    overflow-y: auto;
+  }
+
+  .workspace-body {
+    flex: 1 1 0;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr 380px;
+    grid-template-rows: minmax(190px, 0.6fr) minmax(150px, 1fr) minmax(150px, 1.1fr) minmax(300px, 1.2fr);
+    grid-template-areas:
+      "watchlist watchlist chat"
+      "chart pnl chat"
+      "heatmap heatmap chat"
+      "tradepos tradepos chat";
+  }
+
+  .workspace-watchlist,
+  .workspace-chart,
+  .workspace-pnl,
+  .workspace-heatmap,
+  .workspace-tradepos,
+  .workspace-chat {
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .workspace-watchlist {
+    grid-area: watchlist;
+  }
+  .workspace-chart {
+    grid-area: chart;
+  }
+  .workspace-pnl {
+    grid-area: pnl;
+  }
+  .workspace-chat {
+    grid-area: chat;
+  }
+  .workspace-heatmap {
+    grid-area: heatmap;
+  }
+  .workspace-tradepos {
+    grid-area: tradepos;
+  }
+}
