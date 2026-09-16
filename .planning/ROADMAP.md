@@ -13,7 +13,7 @@ FinAlly already has a working market data layer (simulator + Massive REST client
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Backend Trading Engine** - Complete DB schema, portfolio state, trade execution, and watchlist mutation behind REST endpoints
+- [x] **Phase 1: Backend Trading Engine** - Complete DB schema, portfolio state, trade execution, and watchlist mutation behind REST endpoints (completed 2026-09-16)
 - [ ] **Phase 2: Core Trading UI** - Minimal Next.js frontend wiring watchlist, trade bar, positions, and header to the live backend
 - [ ] **Phase 3: AI Chat Copilot** - LLM chat assistant that analyzes the portfolio and auto-executes trades/watchlist changes
 - [ ] **Phase 4: Portfolio Visualization** - Sparklines, main chart, portfolio heatmap, and P&L history chart
@@ -36,7 +36,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. `GET /api/portfolio` returns current cash, positions with unrealized P&L, and total value; `GET /api/portfolio/history` returns value snapshots recorded every 30s and immediately after each trade
   5. `POST /api/watchlist` adds a recognized ticker (400 on unrecognized) and `DELETE /api/watchlist/{ticker}` removes it, with both persisted in SQLite across restarts
 
-**Plans:** 4/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 **Wave 1**
@@ -140,7 +140,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
-| 1. Backend Trading Engine | 4/4 | In Progress|  |
+| 1. Backend Trading Engine | 4/4 | Complete    | 2026-09-16 |
 | 2. Core Trading UI | TBD | Not started | - |
 | 3. AI Chat Copilot | TBD | Not started | - |
 | 4. Portfolio Visualization | TBD | Not started | - |
