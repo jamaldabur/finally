@@ -6,10 +6,11 @@ Written RED first: at the time this file is authored, `app/db/users_profile.py`,
 `app/routes/portfolio.py` do not exist yet.
 """
 
+import asyncio
+
 import pytest
 from fastapi.testclient import TestClient
 
-from app.db import portfolio_snapshots as portfolio_snapshots_module
 from app.db import positions as positions_module
 from app.db import trades as trades_module
 from app.db import users_profile as users_profile_module
@@ -327,6 +328,12 @@ def test_trade_records_an_immediate_snapshot(client: TestClient) -> None:
     # The snapshot loop records at startup (before its first sleep), so
     # every TestClient-backed test begins with one snapshot already
     # present — assertions here are relative (grew by one), not absolute.
+    # asyncio.create_task() only schedules the loop; it isn't guaranteed to
+    # have run its first iteration by the time this synchronous test issues
+    # its first request, so give the event loop one tick via portal.call to
+    # let that startup write land before measuring the baseline (avoids the
+    # same background-task race documented in 01-01-SUMMARY.md/01-03-SUMMARY.md).
+    client.portal.call(asyncio.sleep, 0.05)
     _seed_price(client, "CSCO", 100.0)
     snapshots_before = client.get("/api/portfolio/history").json()["snapshots"]
 
@@ -344,6 +351,7 @@ def test_trade_records_an_immediate_snapshot(client: TestClient) -> None:
 
 
 def test_rejected_trade_records_no_snapshot(client: TestClient) -> None:
+    client.portal.call(asyncio.sleep, 0.05)
     _seed_price(client, "CSCO", 100.0)
     snapshots_before = client.get("/api/portfolio/history").json()["snapshots"]
 

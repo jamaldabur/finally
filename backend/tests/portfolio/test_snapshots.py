@@ -40,7 +40,11 @@ async def test_snapshot_loop_records_on_each_iteration() -> None:
     cache = PriceCache()
 
     task = asyncio.create_task(run_portfolio_snapshot_loop(cache, interval_seconds=0.01))
-    await _run_briefly(task)
+    # Each iteration does real (if sync-wrapped) SQLite I/O, so 0.01s sleeps
+    # can take noticeably longer in wall-clock terms than the nominal
+    # interval — give the loop a wider window than test_loop.py's market-data
+    # analog to reliably observe at least two iterations.
+    await _run_briefly(task, seconds=0.2)
 
     snapshots = await portfolio_snapshots_module.get_snapshots()
 
@@ -68,7 +72,7 @@ async def test_snapshot_loop_survives_an_iteration_error(monkeypatch) -> None:
     )
 
     task = asyncio.create_task(run_portfolio_snapshot_loop(cache, interval_seconds=0.01))
-    await _run_briefly(task)
+    await _run_briefly(task, seconds=0.2)
 
     assert call_count["n"] >= 2
     snapshots = await portfolio_snapshots_module.get_snapshots()

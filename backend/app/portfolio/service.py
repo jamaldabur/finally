@@ -14,7 +14,7 @@ import asyncio
 from dataclasses import dataclass
 from typing import Literal
 
-from ..db import positions, trades, users_profile
+from ..db import portfolio_snapshots, positions, trades, users_profile
 from ..db.positions import Position
 from ..db.trades import Trade
 from ..db.watchlist import DEFAULT_USER_ID
@@ -175,7 +175,16 @@ async def execute_trade(
         existing = await positions.get_position(ticker, user_id)
 
         if side == "buy":
-            return await _apply_buy(
+            result = await _apply_buy(
+                ticker=ticker,
+                quantity=quantity,
+                price=tick.price,
+                cash=cash,
+                existing=existing,
+                user_id=user_id,
+            )
+        else:
+            result = await _apply_sell(
                 ticker=ticker,
                 quantity=quantity,
                 price=tick.price,
@@ -184,14 +193,18 @@ async def execute_trade(
                 user_id=user_id,
             )
 
-        return await _apply_sell(
-            ticker=ticker,
-            quantity=quantity,
-            price=tick.price,
-            cash=cash,
-            existing=existing,
-            user_id=user_id,
-        )
+        # DATA-04: an immediate snapshot on every successful trade, still
+        # inside this lock so the recorded total_value reflects exactly the
+        # state this trade just committed, with no interleaved trade able to
+        # change it first. compute_portfolio_view() deliberately takes no
+        # lock, so this nested call cannot deadlock. No rejection branch
+        # reaches this line — both _apply_buy and _apply_sell return before
+        # any write on their error paths.
+        if result.status == "executed":
+            view = await compute_portfolio_view(price_cache=price_cache, user_id=user_id)
+            await portfolio_snapshots.insert_snapshot(view.total_value)
+
+        return result
 
 
 async def _apply_buy(

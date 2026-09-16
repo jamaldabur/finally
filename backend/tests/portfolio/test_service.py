@@ -13,6 +13,7 @@ import asyncio
 
 import pytest
 
+from app.db import portfolio_snapshots as portfolio_snapshots_module
 from app.db import positions as positions_module
 from app.db import trades as trades_module
 from app.db import users_profile as users_profile_module
@@ -25,6 +26,11 @@ async def _init_tables() -> None:
     await users_profile_module.init_db()
     await positions_module.init_db()
     await trades_module.init_db()
+    # execute_trade() writes an immediate portfolio_snapshots row on every
+    # successful trade (DATA-04, Plan 04 Task 3) — this table must exist
+    # before any of this module's execute_trade() calls, same as the other
+    # three.
+    await portfolio_snapshots_module.init_db()
 
 
 @pytest.mark.asyncio

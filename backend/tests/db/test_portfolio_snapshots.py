@@ -41,11 +41,15 @@ async def test_inserts_are_append_only() -> None:
 
     snapshots = await portfolio_snapshots_module.get_snapshots()
 
-    # Three distinct rows persisted (no overwriting) with three distinct
-    # recorded_at timestamps — proof that each insert created its own row
-    # under its own generated id, rather than upserting over a prior row.
+    # Three distinct rows persisted (no overwriting), proven by the row
+    # count and the preserved insertion-order total_values — each insert
+    # created its own row under its own generated id rather than upserting
+    # over a prior one. Not asserting on distinct recorded_at strings here:
+    # on some platforms datetime.now()'s effective clock resolution can be
+    # coarser than microseconds, so three inserts issued back-to-back in a
+    # tight loop can legitimately share a timestamp string without that
+    # indicating a collision or an overwrite.
     assert len(snapshots) == 3
-    assert len({s.recorded_at for s in snapshots}) == 3
     assert [s.total_value for s in snapshots] == [1.0, 2.0, 3.0]
 
 

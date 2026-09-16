@@ -18,6 +18,7 @@ from .market.cache import PriceCache
 from .market.factory import build_market_data_source
 from .market.loop import MASSIVE_POLL_SECONDS, SIMULATOR_TICK_SECONDS, run_update_loop
 from .market.massive import MassiveMarketDataSource
+from .portfolio.snapshots import run_portfolio_snapshot_loop
 from .routes import health, portfolio, stream
 from .routes import watchlist as watchlist_routes
 
@@ -46,6 +47,7 @@ async def lifespan(app: FastAPI):
     update_task = asyncio.create_task(
         run_update_loop(source, cache, get_watchlist_tickers, interval)
     )
+    snapshot_task = asyncio.create_task(run_portfolio_snapshot_loop(cache))
 
     # Stored on app.state so routes can reach both without a second global —
     # this is the single constructed MarketDataSource instance for the
@@ -57,10 +59,16 @@ async def lifespan(app: FastAPI):
     # PriceCache's own asyncio.Lock (the codebase's only other precedent for
     # guarding shared mutable state under concurrent async access).
     app.state.portfolio_lock = asyncio.Lock()
+    # Stored so tests (and any future introspection) can assert the task was
+    # actually cancelled on shutdown, not just fire-and-forget (01-RESEARCH.md
+    # Pitfall 5 — an untracked task leaks across TestClient teardown and can
+    # write into the next test's throwaway database).
+    app.state.snapshot_task = snapshot_task
 
     yield
 
     update_task.cancel()
+    snapshot_task.cancel()
     await source.stop()
 
 
