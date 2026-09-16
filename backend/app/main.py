@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from .db import positions, trades, users_profile
+from .db import chat_messages, positions, trades, users_profile
 from .db.watchlist import get_watchlist_tickers, init_db
 from .market.cache import PriceCache
 from .market.factory import build_market_data_source
@@ -31,6 +31,7 @@ async def lifespan(app: FastAPI):
     await users_profile.init_db()
     await positions.init_db()
     await trades.init_db()
+    await chat_messages.init_db()
 
     source = build_market_data_source()
     cache = PriceCache()
