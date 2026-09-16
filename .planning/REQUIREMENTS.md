@@ -13,8 +13,8 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 - [x] **DATA-02**: System persists positions (ticker, quantity, avg_cost) in a `positions` SQLite table
 - [x] **DATA-03**: System persists an append-only trade history in a `trades` SQLite table
 - [ ] **DATA-04**: System records portfolio value snapshots every 30 seconds and immediately after each trade, in a `portfolio_snapshots` table
-- [ ] **DATA-05**: System persists chat conversation history (role, content, actions) in a `chat_messages` table
-- [ ] **DATA-06**: Watchlist add/remove operations are persisted (extends the existing read-only `watchlist` table with write paths)
+- [x] **DATA-05**: System persists chat conversation history (role, content, actions) in a `chat_messages` table
+- [x] **DATA-06**: Watchlist add/remove operations are persisted (extends the existing read-only `watchlist` table with write paths)
 
 ### Portfolio & Trading (PORT)
 
@@ -27,9 +27,9 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 
 ### Watchlist (WLST)
 
-- [ ] **WLST-01**: User can add a ticker to the watchlist via `POST /api/watchlist`; unrecognized tickers are rejected with a 400
-- [ ] **WLST-02**: User can remove a ticker from the watchlist via `DELETE /api/watchlist/{ticker}`
-- [ ] **WLST-03**: User can view the current watchlist with latest prices via `GET /api/watchlist`
+- [x] **WLST-01**: User can add a ticker to the watchlist via `POST /api/watchlist`; unrecognized tickers are rejected with a 400
+- [x] **WLST-02**: User can remove a ticker from the watchlist via `DELETE /api/watchlist/{ticker}`
+- [x] **WLST-03**: User can view the current watchlist with latest prices via `GET /api/watchlist`
 
 ### AI Chat (CHAT)
 
@@ -103,17 +103,17 @@ Which phases cover which requirements. Populated during roadmap creation.
 | DATA-02 | Phase 1 | Complete |
 | DATA-03 | Phase 1 | Complete |
 | DATA-04 | Phase 1 | Pending |
-| DATA-05 | Phase 1 | Pending |
-| DATA-06 | Phase 1 | Pending |
+| DATA-05 | Phase 1 | Complete |
+| DATA-06 | Phase 1 | Complete |
 | PORT-01 | Phase 1 | Complete |
 | PORT-02 | Phase 1 | Complete |
 | PORT-03 | Phase 1 | Complete |
 | PORT-04 | Phase 1 | Complete |
 | PORT-05 | Phase 1 | Pending |
 | PORT-06 | Phase 1 | Pending |
-| WLST-01 | Phase 1 | Pending |
-| WLST-02 | Phase 1 | Pending |
-| WLST-03 | Phase 1 | Pending |
+| WLST-01 | Phase 1 | Complete |
+| WLST-02 | Phase 1 | Complete |
+| WLST-03 | Phase 1 | Complete |
 | UI-01 | Phase 2 | Pending |
 | UI-06 | Phase 2 | Pending |
 | UI-07 | Phase 2 | Pending |
