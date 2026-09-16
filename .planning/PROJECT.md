@@ -18,17 +18,18 @@ A user can watch live prices, trade a simulated portfolio, and have an AI copilo
 - ✓ SSE endpoint (`GET /api/stream/prices`) streaming price ticks to clients — existing (pre-GSD)
 - ✓ SQLite `watchlist` table, lazily initialized and seeded with 10 default tickers (read-only) — existing (pre-GSD)
 - ✓ `GET /api/health` liveness endpoint — existing (pre-GSD)
+- ✓ Complete SQLite schema: `users_profile`, `positions`, `trades`, `portfolio_snapshots`, `chat_messages` tables (plus watchlist mutation support) — Phase 1
+- ✓ Portfolio state: cash balance, positions with avg cost, unrealized P&L (computed live on read, never persisted) — Phase 1
+- ✓ Market order trade execution (buy/sell, instant fill, no fees, no confirmation), validated for sufficient cash/shares — Phase 1
+- ✓ Portfolio snapshot recording (every 30s + after each trade) for P&L history — Phase 1
+- ✓ Watchlist mutation: add ticker (reject unrecognized symbols) and remove ticker — Phase 1
+- ✓ REST API: `/api/portfolio`, `/api/portfolio/trade`, `/api/portfolio/history`, `/api/watchlist` (GET/POST/DELETE) — Phase 1
 
 ### Active
 
-- [ ] Complete SQLite schema: `users_profile`, `positions`, `trades`, `portfolio_snapshots`, `chat_messages` tables (plus watchlist mutation support)
-- [ ] Portfolio state: cash balance, positions with avg cost, unrealized P&L
-- [ ] Market order trade execution (buy/sell, instant fill, no fees, no confirmation), validated for sufficient cash/shares
-- [ ] Portfolio snapshot recording (every 30s + after each trade) for P&L history
-- [ ] Watchlist mutation: add ticker (reject unrecognized symbols) and remove ticker
-- [ ] REST API: `/api/portfolio`, `/api/portfolio/trade`, `/api/portfolio/history`, `/api/watchlist` (GET/POST/DELETE)
 - [ ] LLM chat integration via LiteLLM → OpenRouter (`openrouter/openai/gpt-oss-120b`), structured JSON output (message + trades + watchlist_changes)
 - [ ] Chat auto-executes trades/watchlist changes through the same validation path as manual actions, annotates each with executed/error outcome
+- [ ] `execute_trade()` gains its own input validation (quantity > 0, side is exactly "buy"/"sell") instead of relying solely on the HTTP route's Pydantic layer — emerged from Phase 1 code review (01-REVIEW.md WR-01/WR-02): a direct non-HTTP call with a negative/zero quantity can mint free cash or raise an uncaught `ZeroDivisionError` inside the portfolio lock, and Phase 3's chat flow is specified to call `execute_trade()` directly with LLM-sourced args, bypassing that route-level guard
 - [ ] `GET /api/chat` (history) and `POST /api/chat` (send message, get full response) endpoints
 - [ ] `LLM_MOCK=true` deterministic mock mode for testing
 - [ ] Next.js (TypeScript, static export) frontend: dark terminal-themed single-page app
@@ -78,7 +79,9 @@ A user can watch live prices, trade a simulated portfolio, and have an AI copilo
 |----------|-----------|---------|
 | Treat `planning/PLAN.md` as the binding spec; this GSD cycle scopes/sequences work rather than re-deciding architecture | PLAN.md is already exhaustive and pre-approved; re-litigating it would waste the detailed prior design work | — Pending |
 | Single v1 milestone covering the full remainder of PLAN.md (portfolio, chat, frontend, Docker, tests) | Scope is already tightly bounded by PLAN.md; splitting into multiple milestones would add process overhead without a clear natural cut point | — Pending |
-| Structure roadmap as a Vertical MVP (thin end-to-end slice first, then layer in visualization/AI/packaging) rather than Horizontal Layers | Gets a demoable trade-execution loop working early against the already-live market data stream, reducing integration risk versus building all layers in parallel and wiring at the end | — Pending |
+| Structure roadmap as a Vertical MVP (thin end-to-end slice first, then layer in visualization/AI/packaging) rather than Horizontal Layers | Gets a demoable trade-execution loop working early against the already-live market data stream, reducing integration risk versus building all layers in parallel and wiring at the end | ✓ Validated by Phase 1 — walking-skeleton tracer (one BUY order, full stack) landed first and every later plan/task extended it without rework |
+| Keep inline `_SCHEMA` constants per `app/db/*.py` module (mirroring the existing `watchlist.py` pattern) rather than extracting to a `backend/schema/` directory as root PLAN.md §4 anticipates | All five new tables needed to ship fast behind a single shared `_connect()`/`DB_PATH`; extracting a schema layer now would be a pure refactor with no behavior change and no phase currently blocked on it | Phase 1 — kept inline; revisit only if a future phase actually needs schema/migration tooling |
+| `execute_trade()` trusts its caller for `quantity > 0` and `side ∈ {"buy","sell"}` rather than re-validating internally | Plan 01 scoped it as the trade route's backing function only; Pydantic at the HTTP layer was assumed sufficient | Phase 1 — flagged as a gap by code review (WR-01/WR-02) once Phase 3's direct-call chat flow was considered; added to Active requirements, not yet fixed |
 
 ## Evolution
 
@@ -98,4 +101,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-15 after initialization*
+*Last updated: 2026-09-16 after Phase 1*

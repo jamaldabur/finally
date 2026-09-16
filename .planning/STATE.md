@@ -20,10 +20,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-15)
+See: .planning/PROJECT.md (updated 2026-09-16)
 
 **Core value:** A user can watch live prices, trade a simulated portfolio, and have an AI copilot execute trades on their behalf — the full agentic trading loop (watch → decide → chat → execute → see it reflected in the portfolio) must work end-to-end.
-**Current focus:** Phase 01 — Backend Trading Engine
+**Current focus:** Phase 2 — Core Trading UI
 
 ## Current Position
 
@@ -89,7 +89,8 @@ None yet.
 
 - REQUIREMENTS.md's original "34 total" coverage count was a pre-enumeration estimate; the actual enumerated v1 list contains 40 REQ-IDs. Traceability table and coverage count corrected to 40/40 during roadmap creation.
 - Known tech debt in the existing market data layer (sync SQLite via `asyncio.to_thread`, no connection pooling, inline schema definitions, broad exception handling in the update loop) is acceptable at current single-user demo scale per `.planning/codebase/CONCERNS.md` — not blocking, not required to fix this milestone.
-- Phase 1 extends `backend/app/db/watchlist.py`'s read-only pattern to full read/write across five new tables (`users_profile`, `positions`, `trades`, `portfolio_snapshots`, `chat_messages`) — worth deciding during Phase 1 planning whether to keep inline schema (current pattern) or finally extract to `backend/schema/` as PLAN.md §4 anticipates.
+- [Phase 1] `execute_trade()` does not validate `quantity > 0` or `side` itself — relies entirely on the HTTP route's Pydantic layer. A direct call (Phase 3's chat flow calls it directly, bypassing the route) with a bad quantity can mint free cash or raise an uncaught `ZeroDivisionError` inside the portfolio lock. Flagged by 01-REVIEW.md (WR-01/WR-02), added to PROJECT.md Active requirements — worth fixing before or during Phase 3.
+- [Phase 1] The 30s background snapshot recorder (`run_portfolio_snapshot_loop`) does not hold `portfolio_lock`, unlike the on-trade snapshot insert — a trade racing the recorder's read could record a torn (partially-committed) `total_value` into the never-pruned `portfolio_snapshots` table. Flagged by 01-REVIEW.md (WR-03); narrow window, no test currently covers it.
 
 ## Deferred Items
 
