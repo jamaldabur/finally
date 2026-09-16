@@ -12,7 +12,7 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 - [x] **DATA-01**: System persists user profile (cash balance, default $10,000) in a `users_profile` SQLite table
 - [x] **DATA-02**: System persists positions (ticker, quantity, avg_cost) in a `positions` SQLite table
 - [x] **DATA-03**: System persists an append-only trade history in a `trades` SQLite table
-- [ ] **DATA-04**: System records portfolio value snapshots every 30 seconds and immediately after each trade, in a `portfolio_snapshots` table
+- [x] **DATA-04**: System records portfolio value snapshots every 30 seconds and immediately after each trade, in a `portfolio_snapshots` table
 - [x] **DATA-05**: System persists chat conversation history (role, content, actions) in a `chat_messages` table
 - [x] **DATA-06**: Watchlist add/remove operations are persisted (extends the existing read-only `watchlist` table with write paths)
 
@@ -22,8 +22,8 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 - [x] **PORT-02**: User can execute a market sell order — instant fill at current price, no fees, no confirmation dialog
 - [x] **PORT-03**: A buy order is rejected with a clear error if cash balance is insufficient
 - [x] **PORT-04**: A sell order is rejected with a clear error if the user doesn't own enough shares
-- [ ] **PORT-05**: User can view current portfolio (positions, cash balance, total value, unrealized P&L) via `GET /api/portfolio`
-- [ ] **PORT-06**: User can view portfolio value history over time via `GET /api/portfolio/history`
+- [x] **PORT-05**: User can view current portfolio (positions, cash balance, total value, unrealized P&L) via `GET /api/portfolio`
+- [x] **PORT-06**: User can view portfolio value history over time via `GET /api/portfolio/history`
 
 ### Watchlist (WLST)
 
@@ -102,15 +102,15 @@ Which phases cover which requirements. Populated during roadmap creation.
 | DATA-01 | Phase 1 | Complete |
 | DATA-02 | Phase 1 | Complete |
 | DATA-03 | Phase 1 | Complete |
-| DATA-04 | Phase 1 | Pending |
+| DATA-04 | Phase 1 | Complete |
 | DATA-05 | Phase 1 | Complete |
 | DATA-06 | Phase 1 | Complete |
 | PORT-01 | Phase 1 | Complete |
 | PORT-02 | Phase 1 | Complete |
 | PORT-03 | Phase 1 | Complete |
 | PORT-04 | Phase 1 | Complete |
-| PORT-05 | Phase 1 | Pending |
-| PORT-06 | Phase 1 | Pending |
+| PORT-05 | Phase 1 | Complete |
+| PORT-06 | Phase 1 | Complete |
 | WLST-01 | Phase 1 | Complete |
 | WLST-02 | Phase 1 | Complete |
 | WLST-03 | Phase 1 | Complete |

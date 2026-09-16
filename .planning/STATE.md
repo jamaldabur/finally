@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Backend Trading Engine
-status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-09-16T20:12:07.804Z"
+status: verifying
+stopped_at: Completed 01-04-PLAN.md — Phase 1 complete
+last_updated: "2026-09-16T20:34:47.989Z"
 last_activity: 2026-09-16
 last_activity_desc: Phase 01 execution started
-state_head: 51238528b10b044c83716afd4ef4004f26461bf9
+state_head: b9ea857780467416a319d50654ae90a4cd374608
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-09-15)
 
 Phase: 01 (Backend Trading Engine) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-09-16 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -61,6 +61,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01-01 | 17min | 3 tasks | 15 files |
 | Phase 01 P01-02 | 25min | 3 tasks | 4 files |
 | Phase 01 P01-03 | 11min | 3 tasks | 10 files |
+| Phase 01 P01-04 | 15min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Task 2/3 tests for Plan 01-02 passed immediately (no paired feat commit) because the sell sufficiency guard was load-bearing for Task 1's own correctness — Documented as a process note in 01-02-SUMMARY.md deviations, not a Rule 1-4 auto-fix
 - [Phase 01]: Watchlist join test uses a POST-added, non-DEFAULT_WATCHLIST ticker (ORCL) instead of AAPL to avoid the run_update_loop race documented in Plan 01
 - [Phase 01]: Resolved a pytest module-basename collision between tests/db/test_watchlist.py and the plan-locked tests/routes/test_watchlist.py by adding package __init__.py files rather than renaming either file
+- [Phase 01]: [Phase 01]: portfolio_snapshots.init_db() wired into app/main.py's lifespan during Task 2 instead of Task 3, since GET /api/portfolio/history (a Task 2 deliverable) needs the table to exist
+- [Phase 01]: [Phase 01]: Rounded compute_portfolio_view()'s derived monetary/percentage values to cent precision to match app/market/simulator.py's round-once convention and avoid float-precision leaking into the locked API contract
 
 ### Pending Todos
 
@@ -98,6 +101,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-16T20:12:07.760Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-09-16T20:34:47.949Z
+Stopped at: Completed 01-04-PLAN.md — Phase 1 complete
 Resume file: None

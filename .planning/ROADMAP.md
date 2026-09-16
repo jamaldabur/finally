@@ -36,7 +36,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. `GET /api/portfolio` returns current cash, positions with unrealized P&L, and total value; `GET /api/portfolio/history` returns value snapshots recorded every 30s and immediately after each trade
   5. `POST /api/watchlist` adds a recognized ticker (400 on unrecognized) and `DELETE /api/watchlist/{ticker}` removes it, with both persisted in SQLite across restarts
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans executed
 
 Plans:
 **Wave 1**
@@ -50,7 +50,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-04-PLAN.md — Portfolio valuation endpoints and the snapshot history recorder (wave 3)
+- [x] 01-04-PLAN.md — Portfolio valuation endpoints and the snapshot history recorder (wave 3)
 
 ### Phase 2: Core Trading UI
 
@@ -140,7 +140,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
-| 1. Backend Trading Engine | 3/4 | In Progress|  |
+| 1. Backend Trading Engine | 4/4 | In Progress|  |
 | 2. Core Trading UI | TBD | Not started | - |
 | 3. AI Chat Copilot | TBD | Not started | - |
 | 4. Portfolio Visualization | TBD | Not started | - |
