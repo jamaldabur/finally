@@ -196,3 +196,73 @@ def test_sell_records_trade_row(client: TestClient) -> None:
     assert [t.side for t in trades] == ["buy", "sell"]
 
 
+def test_sell_more_than_held_is_rejected(client: TestClient) -> None:
+    _seed_price(client, "CSCO", 100.0)
+    client.post("/api/portfolio/trade", json={"ticker": "CSCO", "side": "buy", "quantity": 10})
+
+    resp = client.post(
+        "/api/portfolio/trade",
+        json={"ticker": "CSCO", "side": "sell", "quantity": 11},
+    )
+
+    assert resp.status_code == 400
+    assert resp.json()["detail"].startswith("Insufficient shares: ")
+
+    position = client.portal.call(positions_module.get_position, "CSCO")
+    assert position is not None
+    assert position.quantity == 10.0
+    assert client.portal.call(users_profile_module.get_cash_balance) == 9000.0
+    assert len(client.portal.call(trades_module.get_trades)) == 1
+
+
+def test_sell_with_no_position_is_rejected(client: TestClient) -> None:
+    _seed_price(client, "CSCO", 100.0)
+
+    resp = client.post(
+        "/api/portfolio/trade",
+        json={"ticker": "CSCO", "side": "sell", "quantity": 1},
+    )
+
+    assert resp.status_code == 400
+    assert resp.json()["detail"].startswith("Insufficient shares: ")
+
+
+def test_sell_all_with_float_imprecision_succeeds(client: TestClient) -> None:
+    _seed_price(client, "CSCO", 100.0)
+    for _ in range(3):
+        client.post("/api/portfolio/trade", json={"ticker": "CSCO", "side": "buy", "quantity": 0.1})
+
+    resp = client.post(
+        "/api/portfolio/trade",
+        json={"ticker": "CSCO", "side": "sell", "quantity": 0.30000000000000004},
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["position"] is None
+    assert client.portal.call(positions_module.get_position, "CSCO") is None
+
+
+def test_rejected_buy_leaves_no_partial_write(client: TestClient) -> None:
+    _seed_price(client, "CSCO", 100.0)
+    first_resp = client.post(
+        "/api/portfolio/trade",
+        json={"ticker": "CSCO", "side": "buy", "quantity": 10},
+    )
+    assert first_resp.status_code == 200
+
+    cash_before = client.portal.call(users_profile_module.get_cash_balance)
+    position_before = client.portal.call(positions_module.get_position, "CSCO")
+    trade_count_before = len(client.portal.call(trades_module.get_trades))
+
+    resp = client.post(
+        "/api/portfolio/trade",
+        json={"ticker": "CSCO", "side": "buy", "quantity": 1000},
+    )
+
+    assert resp.status_code == 400
+    assert client.portal.call(users_profile_module.get_cash_balance) == cash_before
+    assert client.portal.call(positions_module.get_position, "CSCO") == position_before
+    assert len(client.portal.call(trades_module.get_trades)) == trade_count_before
+
+
