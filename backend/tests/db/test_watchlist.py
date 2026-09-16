@@ -4,13 +4,6 @@ from app.db import watchlist as watchlist_module
 from app.market.simulator import DEFAULT_WATCHLIST
 
 
-@pytest.fixture(autouse=True)
-def isolated_db(monkeypatch, tmp_path):
-    """Every test in this module gets its own throwaway SQLite file — never
-    touch the real db/finally.db during tests."""
-    monkeypatch.setattr(watchlist_module, "DB_PATH", tmp_path / "finally.db")
-
-
 @pytest.mark.asyncio
 async def test_init_db_seeds_default_watchlist():
     await watchlist_module.init_db()
