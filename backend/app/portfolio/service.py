@@ -85,9 +85,14 @@ async def execute_trade(
                 user_id=user_id,
             )
 
-        # Plan 02 adds a sibling _apply_sell(...) here — the tracer proves
-        # the buy path only and must not fake the sell path.
-        raise NotImplementedError("Sell execution is Plan 02's responsibility.")
+        return await _apply_sell(
+            ticker=ticker,
+            quantity=quantity,
+            price=tick.price,
+            cash=cash,
+            existing=existing,
+            user_id=user_id,
+        )
 
 
 async def _apply_buy(
@@ -132,4 +137,49 @@ async def _apply_buy(
         trade=trade,
         cash_balance=new_cash_balance,
         position=Position(ticker=ticker, quantity=new_quantity, avg_cost=new_avg_cost),
+    )
+
+
+async def _apply_sell(
+    *,
+    ticker: str,
+    quantity: float,
+    price: float,
+    cash: float,
+    existing: Position | None,
+    user_id: str,
+) -> TradeResult:
+    held = existing.quantity if existing is not None else 0
+    if existing is None or quantity > existing.quantity + QUANTITY_EPSILON:
+        return TradeResult(
+            status="error",
+            reason=(
+                f"Insufficient shares: {ticker} sell of {quantity} exceeds held {held}"
+            ),
+            trade=None,
+            cash_balance=None,
+            position=None,
+        )
+
+    new_quantity = existing.quantity - quantity
+    if abs(new_quantity) < QUANTITY_EPSILON:
+        await positions.delete_position(ticker, user_id)
+        new_position = None
+    else:
+        # avg_cost is left unchanged by a sell — average-cost accounting
+        # realizes P&L against the existing average, it never re-bases it
+        # (01-RESEARCH.md "Average-cost accounting (sell)").
+        await positions.upsert_position(ticker, new_quantity, existing.avg_cost, user_id)
+        new_position = Position(ticker=ticker, quantity=new_quantity, avg_cost=existing.avg_cost)
+
+    new_cash_balance = cash + price * quantity
+    await users_profile.set_cash_balance(new_cash_balance, user_id)
+    trade = await trades.insert_trade(ticker, "sell", quantity, price, user_id)
+
+    return TradeResult(
+        status="executed",
+        reason=None,
+        trade=trade,
+        cash_balance=new_cash_balance,
+        position=new_position,
     )

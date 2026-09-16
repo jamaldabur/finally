@@ -97,3 +97,20 @@ async def upsert_position(
     ticker: str, quantity: float, avg_cost: float, user_id: str = DEFAULT_USER_ID
 ) -> None:
     await asyncio.to_thread(_upsert_position_sync, ticker, quantity, avg_cost, user_id)
+
+
+def _delete_position_sync(ticker: str, user_id: str) -> bool:
+    with _connect() as conn:
+        cursor = conn.execute(
+            "DELETE FROM positions WHERE user_id = ? AND ticker = ?",
+            (user_id, ticker),
+        )
+        deleted = cursor.rowcount > 0
+    return deleted
+
+
+async def delete_position(ticker: str, user_id: str = DEFAULT_USER_ID) -> bool:
+    """Removes a fully-closed position's row entirely — callers must not
+    leave a residual zero-quantity row (app/portfolio/service.py::_apply_sell,
+    01-RESEARCH.md Pitfall 4). Returns whether a row was actually deleted."""
+    return await asyncio.to_thread(_delete_position_sync, ticker, user_id)
