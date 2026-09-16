@@ -19,6 +19,7 @@ from .market.factory import build_market_data_source
 from .market.loop import MASSIVE_POLL_SECONDS, SIMULATOR_TICK_SECONDS, run_update_loop
 from .market.massive import MassiveMarketDataSource
 from .routes import health, portfolio, stream
+from .routes import watchlist as watchlist_routes
 
 
 @asynccontextmanager
@@ -66,6 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(stream.router)
     app.include_router(portfolio.router)
+    app.include_router(watchlist_routes.router)
     return app
 
 

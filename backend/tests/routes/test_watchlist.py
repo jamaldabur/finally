@@ -42,23 +42,25 @@ def test_get_watchlist_returns_seeded_tickers(client: TestClient) -> None:
 
 
 def test_get_watchlist_joins_cached_prices(client: TestClient) -> None:
-    _seed_price(client, "AAPL", 190.0)
+    # ORCL is a TICKER_UNIVERSE member but not on DEFAULT_WATCHLIST, so it's
+    # added here via the already-tested POST path rather than being one of
+    # the 10 seeded tickers. This dodges the run_update_loop race that
+    # 01-01-SUMMARY.md documents for on-watchlist tickers: the background
+    # loop only fetches DEFAULT_WATCHLIST tickers on its very first (already
+    # in-flight) iteration, and won't see ORCL until its *next* 0.5s tick —
+    # long after this synchronous test has already asserted and returned.
+    add_resp = client.post("/api/watchlist", json={"ticker": "ORCL"})
+    assert add_resp.status_code == 200
+
+    _seed_price(client, "ORCL", 190.0)
 
     resp = client.get("/api/watchlist")
 
     assert resp.status_code == 200
     body = resp.json()
     entries = {entry["ticker"]: entry for entry in body["watchlist"]}
-    assert entries["AAPL"]["price"] == 190.0
-    assert entries["AAPL"]["direction"] is not None
-
-    # GOOGL is seeded by default but not manually primed here; the app's own
-    # background update loop races this assertion under full-suite load, so
-    # we only assert the null-price contract on a ticker outside the default
-    # watchlist entirely (never touched by run_update_loop or this test).
-    resp2 = client.get("/api/watchlist")
-    entries2 = {entry["ticker"]: entry for entry in resp2.json()["watchlist"]}
-    assert "ORCL" not in entries2  # sanity: not on the default watchlist
+    assert entries["ORCL"]["price"] == 190.0
+    assert entries["ORCL"]["direction"] is not None
 
 
 def test_get_watchlist_uncached_ticker_has_null_price(client: TestClient) -> None:
