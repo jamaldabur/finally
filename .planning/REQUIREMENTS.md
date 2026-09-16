@@ -19,9 +19,9 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 ### Portfolio & Trading (PORT)
 
 - [x] **PORT-01**: User can execute a market buy order — instant fill at current price, no fees, no confirmation dialog
-- [ ] **PORT-02**: User can execute a market sell order — instant fill at current price, no fees, no confirmation dialog
-- [ ] **PORT-03**: A buy order is rejected with a clear error if cash balance is insufficient
-- [ ] **PORT-04**: A sell order is rejected with a clear error if the user doesn't own enough shares
+- [x] **PORT-02**: User can execute a market sell order — instant fill at current price, no fees, no confirmation dialog
+- [x] **PORT-03**: A buy order is rejected with a clear error if cash balance is insufficient
+- [x] **PORT-04**: A sell order is rejected with a clear error if the user doesn't own enough shares
 - [ ] **PORT-05**: User can view current portfolio (positions, cash balance, total value, unrealized P&L) via `GET /api/portfolio`
 - [ ] **PORT-06**: User can view portfolio value history over time via `GET /api/portfolio/history`
 
@@ -106,9 +106,9 @@ Which phases cover which requirements. Populated during roadmap creation.
 | DATA-05 | Phase 1 | Pending |
 | DATA-06 | Phase 1 | Pending |
 | PORT-01 | Phase 1 | Complete |
-| PORT-02 | Phase 1 | Pending |
-| PORT-03 | Phase 1 | Pending |
-| PORT-04 | Phase 1 | Pending |
+| PORT-02 | Phase 1 | Complete |
+| PORT-03 | Phase 1 | Complete |
+| PORT-04 | Phase 1 | Complete |
 | PORT-05 | Phase 1 | Pending |
 | PORT-06 | Phase 1 | Pending |
 | WLST-01 | Phase 1 | Pending |
