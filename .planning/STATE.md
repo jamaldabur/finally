@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 1
+current_phase: 01
 current_phase_name: Backend Trading Engine
 status: executing
-stopped_at: Roadmap and initial state created for v1 milestone; awaiting approval to begin `/gsd-plan-phase 1`
-last_updated: "2026-09-15T22:18:39.746Z"
-last_activity: 2026-09-15
-last_activity_desc: Roadmap created (6 phases, 40 v1 requirements mapped)
-state_head: 1040db7f159e4c2a1c291036420887c98a9e8585
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-09-16T19:49:06.461Z"
+last_activity: 2026-09-16
+last_activity_desc: Phase 01 execution started
+state_head: 0db502275e0a21627d2e5d6282d704eaefaaebfb
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 4
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-15)
 
 **Core value:** A user can watch live prices, trade a simulated portfolio, and have an AI copilot execute trades on their behalf — the full agentic trading loop (watch → decide → chat → execute → see it reflected in the portfolio) must work end-to-end.
-**Current focus:** Phase 1 — Backend Trading Engine
+**Current focus:** Phase 01 — Backend Trading Engine
 
 ## Current Position
 
-Phase: 1 (Backend Trading Engine) — READY TO EXECUTE
-Plan: - of - in current phase
+Phase: 01 (Backend Trading Engine) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-09-15 — Roadmap created (6 phases, 40 v1 requirements mapped)
+Last activity: 2026-09-16 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -54,6 +54,11 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P01-01 | 17min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -65,6 +70,8 @@ Recent decisions affecting current work:
 - Milestone-wide: Treat `planning/PLAN.md` as the binding spec; this GSD cycle scopes/sequences work rather than re-deciding architecture
 - Milestone-wide: Single v1 milestone covers the full remainder of PLAN.md (portfolio, chat, frontend, Docker, tests)
 - Roadmap: Structured as a Vertical MVP — Phase 1 delivers a complete backend trading engine, Phase 2 wires the minimal frontend to it, then chat, then visualization, then packaging, then tests
+- [Phase 01]: Route tests use TestClient.portal.call(...) as the sync-safe pattern to drive async price-cache seeding/DB reads on the app's own event loop — Avoids cross-event-loop hazard between a pytest-asyncio test loop and TestClient's dedicated portal thread where the app's lifespan and background tasks actually run
+- [Phase 01]: BUY-path route tests seed prices on CSCO (valid but not on DEFAULT_WATCHLIST) instead of AAPL — AAPL is on the default watchlist, so the real background update loop races the test's manually-seeded price under full-suite load; a non-watchlist ticker is never touched by that loop
 
 ### Pending Todos
 
@@ -86,6 +93,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-15
-Stopped at: Roadmap and initial state created for v1 milestone; awaiting approval to begin `/gsd-plan-phase 1`
+Last session: 2026-09-16T19:49:06.417Z
+Stopped at: Completed 01-01-PLAN.md
 Resume file: None

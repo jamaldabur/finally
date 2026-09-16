@@ -9,16 +9,16 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 
 ### Database (DATA)
 
-- [ ] **DATA-01**: System persists user profile (cash balance, default $10,000) in a `users_profile` SQLite table
-- [ ] **DATA-02**: System persists positions (ticker, quantity, avg_cost) in a `positions` SQLite table
-- [ ] **DATA-03**: System persists an append-only trade history in a `trades` SQLite table
+- [x] **DATA-01**: System persists user profile (cash balance, default $10,000) in a `users_profile` SQLite table
+- [x] **DATA-02**: System persists positions (ticker, quantity, avg_cost) in a `positions` SQLite table
+- [x] **DATA-03**: System persists an append-only trade history in a `trades` SQLite table
 - [ ] **DATA-04**: System records portfolio value snapshots every 30 seconds and immediately after each trade, in a `portfolio_snapshots` table
 - [ ] **DATA-05**: System persists chat conversation history (role, content, actions) in a `chat_messages` table
 - [ ] **DATA-06**: Watchlist add/remove operations are persisted (extends the existing read-only `watchlist` table with write paths)
 
 ### Portfolio & Trading (PORT)
 
-- [ ] **PORT-01**: User can execute a market buy order — instant fill at current price, no fees, no confirmation dialog
+- [x] **PORT-01**: User can execute a market buy order — instant fill at current price, no fees, no confirmation dialog
 - [ ] **PORT-02**: User can execute a market sell order — instant fill at current price, no fees, no confirmation dialog
 - [ ] **PORT-03**: A buy order is rejected with a clear error if cash balance is insufficient
 - [ ] **PORT-04**: A sell order is rejected with a clear error if the user doesn't own enough shares
@@ -99,13 +99,13 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 1 | Pending |
-| DATA-02 | Phase 1 | Pending |
-| DATA-03 | Phase 1 | Pending |
+| DATA-01 | Phase 1 | Complete |
+| DATA-02 | Phase 1 | Complete |
+| DATA-03 | Phase 1 | Complete |
 | DATA-04 | Phase 1 | Pending |
 | DATA-05 | Phase 1 | Pending |
 | DATA-06 | Phase 1 | Pending |
-| PORT-01 | Phase 1 | Pending |
+| PORT-01 | Phase 1 | Complete |
 | PORT-02 | Phase 1 | Pending |
 | PORT-03 | Phase 1 | Pending |
 | PORT-04 | Phase 1 | Pending |
@@ -141,6 +141,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | TEST-05 | Phase 6 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 40 total (corrected — the enumerated list above has always contained 40 REQ-IDs; the earlier "34" figure was a pre-enumeration placeholder never reconciled with the final list)
 - Mapped to phases: 40
 - Unmapped: 0 ✓
