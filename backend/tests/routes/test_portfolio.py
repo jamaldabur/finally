@@ -9,6 +9,7 @@ Written RED first: at the time this file is authored, `app/db/users_profile.py`,
 import pytest
 from fastapi.testclient import TestClient
 
+from app.db import portfolio_snapshots as portfolio_snapshots_module
 from app.db import positions as positions_module
 from app.db import trades as trades_module
 from app.db import users_profile as users_profile_module
@@ -321,4 +322,48 @@ def test_rejected_buy_leaves_no_partial_write(client: TestClient) -> None:
     assert client.portal.call(positions_module.get_position, "CSCO") == position_before
     assert len(client.portal.call(trades_module.get_trades)) == trade_count_before
 
+
+def test_trade_records_an_immediate_snapshot(client: TestClient) -> None:
+    # The snapshot loop records at startup (before its first sleep), so
+    # every TestClient-backed test begins with one snapshot already
+    # present — assertions here are relative (grew by one), not absolute.
+    _seed_price(client, "CSCO", 100.0)
+    snapshots_before = client.get("/api/portfolio/history").json()["snapshots"]
+
+    resp = client.post(
+        "/api/portfolio/trade",
+        json={"ticker": "CSCO", "side": "buy", "quantity": 10},
+    )
+    assert resp.status_code == 200
+
+    snapshots_after = client.get("/api/portfolio/history").json()["snapshots"]
+    portfolio_after = client.get("/api/portfolio").json()
+
+    assert len(snapshots_after) == len(snapshots_before) + 1
+    assert snapshots_after[-1]["total_value"] == portfolio_after["total_value"]
+
+
+def test_rejected_trade_records_no_snapshot(client: TestClient) -> None:
+    _seed_price(client, "CSCO", 100.0)
+    snapshots_before = client.get("/api/portfolio/history").json()["snapshots"]
+
+    resp = client.post(
+        "/api/portfolio/trade",
+        json={"ticker": "CSCO", "side": "buy", "quantity": 1000},
+    )
+    assert resp.status_code == 400
+
+    snapshots_after = client.get("/api/portfolio/history").json()["snapshots"]
+
+    assert len(snapshots_after) == len(snapshots_before)
+
+
+def test_lifespan_cancels_the_snapshot_task(monkeypatch) -> None:
+    monkeypatch.delenv("MASSIVE_API_KEY", raising=False)
+    app = create_app()
+    with TestClient(app) as test_client:
+        snapshot_task = test_client.app.state.snapshot_task
+        assert not snapshot_task.done()
+
+    assert snapshot_task.cancelled() or snapshot_task.done()
 
