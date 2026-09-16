@@ -243,6 +243,62 @@ def test_sell_all_with_float_imprecision_succeeds(client: TestClient) -> None:
     assert client.portal.call(positions_module.get_position, "CSCO") is None
 
 
+def test_get_portfolio_returns_locked_shape(client: TestClient) -> None:
+    resp = client.get("/api/portfolio")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["cash_balance"] == 10000.0
+    assert body["positions"] == []
+    assert body["positions_value"] == 0.0
+    assert body["total_value"] == 10000.0
+    assert body["total_unrealized_pnl"] == 0.0
+
+
+def test_get_portfolio_reflects_a_trade(client: TestClient) -> None:
+    _seed_price(client, "CSCO", 100.0)
+    client.post("/api/portfolio/trade", json={"ticker": "CSCO", "side": "buy", "quantity": 10})
+
+    resp = client.get("/api/portfolio")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["positions"]) == 1
+    position = body["positions"][0]
+    assert position["ticker"] == "CSCO"
+    assert position["quantity"] == 10.0
+    assert position["avg_cost"] == 100.0
+    assert body["total_value"] == body["cash_balance"] + body["positions_value"]
+
+
+def test_get_portfolio_positions_sorted_by_ticker(client: TestClient) -> None:
+    _seed_price(client, "CSCO", 100.0)
+    _seed_price(client, "ORCL", 50.0)
+    client.post("/api/portfolio/trade", json={"ticker": "ORCL", "side": "buy", "quantity": 1})
+    client.post("/api/portfolio/trade", json={"ticker": "CSCO", "side": "buy", "quantity": 1})
+
+    resp = client.get("/api/portfolio")
+
+    assert resp.status_code == 200
+    tickers = [p["ticker"] for p in resp.json()["positions"]]
+    assert tickers == sorted(tickers)
+    assert tickers == ["CSCO", "ORCL"]
+
+
+def test_get_portfolio_history_returns_snapshots(client: TestClient) -> None:
+    resp = client.get("/api/portfolio/history")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "snapshots" in body
+    assert isinstance(body["snapshots"], list)
+    for snapshot in body["snapshots"]:
+        assert "total_value" in snapshot
+        assert "recorded_at" in snapshot
+    recorded_ats = [s["recorded_at"] for s in body["snapshots"]]
+    assert recorded_ats == sorted(recorded_ats)
+
+
 def test_rejected_buy_leaves_no_partial_write(client: TestClient) -> None:
     _seed_price(client, "CSCO", 100.0)
     first_resp = client.post(

@@ -18,7 +18,7 @@ from app.db import trades as trades_module
 from app.db import users_profile as users_profile_module
 from app.market.cache import PriceCache
 from app.market.simulator import SimulatorMarketDataSource
-from app.portfolio.service import execute_trade
+from app.portfolio.service import compute_portfolio_view, execute_trade
 
 
 async def _init_tables() -> None:
@@ -220,3 +220,90 @@ async def test_concurrent_trades_are_serialized_by_the_lock() -> None:
 
     final_cash = await users_profile_module.get_cash_balance()
     assert final_cash == 4000.0
+
+
+@pytest.mark.asyncio
+async def test_portfolio_view_computes_unrealized_pnl() -> None:
+    """01-04-PLAN.md Task 2 behavior: buy 10 @ 100.0, move the cached price
+    to 120.0; the view reports current_price/market_value/unrealized_pnl/
+    pct_change/positions_value/total_value per the locked contract."""
+    await _init_tables()
+    cache = PriceCache()
+    market_source = SimulatorMarketDataSource()
+    lock = asyncio.Lock()
+    await cache.update("CSCO", 100.0)
+    await execute_trade(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        ticker="CSCO",
+        side="buy",
+        quantity=10,
+    )
+
+    await cache.update("CSCO", 120.0)
+    view = await compute_portfolio_view(price_cache=cache)
+
+    assert len(view.positions) == 1
+    position = view.positions[0]
+    assert position.ticker == "CSCO"
+    assert position.current_price == 120.0
+    assert position.market_value == 1200.0
+    assert position.unrealized_pnl == 200.0
+    assert position.pct_change == 20.0
+    assert view.positions_value == 1200.0
+    assert view.total_value == 10200.0
+
+
+@pytest.mark.asyncio
+async def test_portfolio_view_handles_loss() -> None:
+    await _init_tables()
+    cache = PriceCache()
+    market_source = SimulatorMarketDataSource()
+    lock = asyncio.Lock()
+    await cache.update("CSCO", 100.0)
+    await execute_trade(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        ticker="CSCO",
+        side="buy",
+        quantity=10,
+    )
+
+    await cache.update("CSCO", 90.0)
+    view = await compute_portfolio_view(price_cache=cache)
+
+    position = view.positions[0]
+    assert position.unrealized_pnl == -100.0
+    assert position.pct_change == -10.0
+
+
+@pytest.mark.asyncio
+async def test_portfolio_view_marks_unpriced_position_to_cost() -> None:
+    """A position whose ticker has no entry in a fresh PriceCache is marked
+    to cost rather than crashing the read or dropping out of total_value
+    (the locked mark-to-cost fallback, 01-04-PLAN.md)."""
+    await _init_tables()
+    cache = PriceCache()
+    market_source = SimulatorMarketDataSource()
+    lock = asyncio.Lock()
+    await cache.update("CSCO", 100.0)
+    await execute_trade(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        ticker="CSCO",
+        side="buy",
+        quantity=10,
+    )
+
+    empty_cache = PriceCache()
+    view = await compute_portfolio_view(price_cache=empty_cache)
+
+    position = view.positions[0]
+    assert position.current_price is None
+    assert position.market_value == 1000.0
+    assert position.unrealized_pnl == 0.0
+    assert position.pct_change == 0.0
+    assert view.total_value == 10000.0
