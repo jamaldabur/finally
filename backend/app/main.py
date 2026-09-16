@@ -12,17 +12,24 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from .db import positions, trades, users_profile
 from .db.watchlist import get_watchlist_tickers, init_db
 from .market.cache import PriceCache
 from .market.factory import build_market_data_source
 from .market.loop import MASSIVE_POLL_SECONDS, SIMULATOR_TICK_SECONDS, run_update_loop
 from .market.massive import MassiveMarketDataSource
-from .routes import health, stream
+from .routes import health, portfolio, stream
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # All init_db() calls run before any asyncio.create_task(...) below —
+    # a background task's first tick could otherwise hit "no such table"
+    # (01-RESEARCH.md Pitfall 6).
     await init_db()
+    await users_profile.init_db()
+    await positions.init_db()
+    await trades.init_db()
 
     source = build_market_data_source()
     cache = PriceCache()
@@ -42,6 +49,11 @@ async def lifespan(app: FastAPI):
     # process's lifetime (planning/MARKET_DATA_DESIGN.md §7).
     app.state.market_source = source
     app.state.price_cache = cache
+    # Guards the read-modify-write of cash_balance + positions + the trades
+    # insert in app/portfolio/service.py::execute_trade(), mirroring
+    # PriceCache's own asyncio.Lock (the codebase's only other precedent for
+    # guarding shared mutable state under concurrent async access).
+    app.state.portfolio_lock = asyncio.Lock()
 
     yield
 
@@ -53,6 +65,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="FinAlly", lifespan=lifespan)
     app.include_router(health.router)
     app.include_router(stream.router)
+    app.include_router(portfolio.router)
     return app
 
 

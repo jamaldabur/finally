@@ -36,11 +36,15 @@ def _seed_price(client: TestClient, ticker: str, price: float) -> None:
 
 
 def test_buy_fills_at_cached_price_and_persists(client: TestClient) -> None:
-    _seed_price(client, "AAPL", 100.0)
+    # CSCO is a member of TICKER_UNIVERSE but not DEFAULT_WATCHLIST, so
+    # run_update_loop (which only fetches watchlist tickers) never races our
+    # manually-seeded price — see test_buy_unpriced_ticker_is_rejected for
+    # the same reasoning applied to an intentionally-unseeded ticker.
+    _seed_price(client, "CSCO", 100.0)
 
     resp = client.post(
         "/api/portfolio/trade",
-        json={"ticker": "AAPL", "side": "buy", "quantity": 10},
+        json={"ticker": "CSCO", "side": "buy", "quantity": 10},
     )
 
     assert resp.status_code == 200
@@ -48,21 +52,21 @@ def test_buy_fills_at_cached_price_and_persists(client: TestClient) -> None:
     assert body["trade"]["price"] == 100.0
     assert body["trade"]["side"] == "buy"
     assert body["cash_balance"] == 9000.0
-    assert body["position"] == {"ticker": "AAPL", "quantity": 10.0, "avg_cost": 100.0}
+    assert body["position"] == {"ticker": "CSCO", "quantity": 10.0, "avg_cost": 100.0}
 
 
 def test_second_buy_weights_avg_cost(client: TestClient) -> None:
-    _seed_price(client, "AAPL", 100.0)
+    _seed_price(client, "CSCO", 100.0)
     resp1 = client.post(
         "/api/portfolio/trade",
-        json={"ticker": "AAPL", "side": "buy", "quantity": 10},
+        json={"ticker": "CSCO", "side": "buy", "quantity": 10},
     )
     assert resp1.status_code == 200
 
-    _seed_price(client, "AAPL", 120.0)
+    _seed_price(client, "CSCO", 120.0)
     resp2 = client.post(
         "/api/portfolio/trade",
-        json={"ticker": "AAPL", "side": "buy", "quantity": 10},
+        json={"ticker": "CSCO", "side": "buy", "quantity": 10},
     )
 
     assert resp2.status_code == 200
@@ -72,10 +76,10 @@ def test_second_buy_weights_avg_cost(client: TestClient) -> None:
 
 
 def test_buy_writes_one_trades_row_per_fill(client: TestClient) -> None:
-    _seed_price(client, "AAPL", 100.0)
-    client.post("/api/portfolio/trade", json={"ticker": "AAPL", "side": "buy", "quantity": 10})
-    _seed_price(client, "AAPL", 120.0)
-    client.post("/api/portfolio/trade", json={"ticker": "AAPL", "side": "buy", "quantity": 10})
+    _seed_price(client, "CSCO", 100.0)
+    client.post("/api/portfolio/trade", json={"ticker": "CSCO", "side": "buy", "quantity": 10})
+    _seed_price(client, "CSCO", 120.0)
+    client.post("/api/portfolio/trade", json={"ticker": "CSCO", "side": "buy", "quantity": 10})
 
     trades = client.portal.call(trades_module.get_trades)
 
@@ -111,16 +115,16 @@ def test_buy_zero_or_negative_quantity_is_422(client: TestClient) -> None:
 
 
 def test_buy_beyond_cash_is_rejected(client: TestClient) -> None:
-    _seed_price(client, "AAPL", 100.0)
+    _seed_price(client, "CSCO", 100.0)
 
     resp = client.post(
         "/api/portfolio/trade",
-        json={"ticker": "AAPL", "side": "buy", "quantity": 1000},
+        json={"ticker": "CSCO", "side": "buy", "quantity": 1000},
     )
 
     assert resp.status_code == 400
     assert resp.json()["detail"].startswith("Insufficient cash: ")
 
     assert client.portal.call(users_profile_module.get_cash_balance) == 10000.0
-    assert client.portal.call(positions_module.get_position, "AAPL") is None
+    assert client.portal.call(positions_module.get_position, "CSCO") is None
     assert client.portal.call(trades_module.get_trades) == []
