@@ -1,9 +1,11 @@
-"""POST /api/portfolio/trade — market order execution (PLAN.md §8
-"Portfolio").
+"""POST /api/portfolio/trade, GET /api/portfolio, GET /api/portfolio/history
+— market order execution and portfolio reads (PLAN.md §8 "Portfolio").
 
 The only module in the request path permitted to raise HTTPException;
 app/portfolio/service.py returns a structured TradeResult that this route
-translates into HTTP (01-RESEARCH.md Pattern 3).
+translates into HTTP (01-RESEARCH.md Pattern 3). Neither GET endpoint raises
+HTTPException — there is no failure mode to translate; an empty portfolio is
+a valid 200.
 """
 
 from __future__ import annotations
@@ -13,7 +15,8 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from ..portfolio.service import execute_trade
+from ..db import portfolio_snapshots
+from ..portfolio.service import compute_portfolio_view, execute_trade
 
 router = APIRouter()
 
@@ -43,6 +46,69 @@ class TradeResponse(BaseModel):
     trade: TradeRecord
     cash_balance: float
     position: PositionRecord | None
+
+
+class PositionViewResponse(BaseModel):
+    ticker: str
+    quantity: float
+    avg_cost: float
+    current_price: float | None
+    market_value: float
+    unrealized_pnl: float
+    pct_change: float
+
+
+class PortfolioResponse(BaseModel):
+    cash_balance: float
+    positions: list[PositionViewResponse]
+    positions_value: float
+    total_value: float
+    total_unrealized_pnl: float
+
+
+class SnapshotResponse(BaseModel):
+    total_value: float
+    recorded_at: str
+
+
+class PortfolioHistoryResponse(BaseModel):
+    snapshots: list[SnapshotResponse]
+
+
+@router.get("/api/portfolio")
+async def get_portfolio(request: Request) -> PortfolioResponse:
+    view = await compute_portfolio_view(price_cache=request.app.state.price_cache)
+
+    return PortfolioResponse(
+        cash_balance=view.cash_balance,
+        positions=[
+            PositionViewResponse(
+                ticker=position.ticker,
+                quantity=position.quantity,
+                avg_cost=position.avg_cost,
+                current_price=position.current_price,
+                market_value=position.market_value,
+                unrealized_pnl=position.unrealized_pnl,
+                pct_change=position.pct_change,
+            )
+            for position in view.positions
+        ],
+        positions_value=view.positions_value,
+        total_value=view.total_value,
+        total_unrealized_pnl=view.total_unrealized_pnl,
+    )
+
+
+@router.get("/api/portfolio/history")
+async def get_portfolio_history() -> PortfolioHistoryResponse:
+    snapshots = await portfolio_snapshots.get_snapshots()
+
+    return PortfolioHistoryResponse(
+        snapshots=[
+            SnapshotResponse(total_value=s.total_value, recorded_at=s.recorded_at)
+            for s in snapshots
+        ]
+    )
 
 
 @router.post("/api/portfolio/trade")

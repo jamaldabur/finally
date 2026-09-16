@@ -25,6 +25,105 @@ QUANTITY_EPSILON = 1e-9
 
 
 @dataclass(frozen=True)
+class PositionView:
+    ticker: str
+    quantity: float
+    avg_cost: float
+    current_price: float | None
+    market_value: float
+    unrealized_pnl: float
+    pct_change: float
+
+
+@dataclass(frozen=True)
+class PortfolioView:
+    cash_balance: float
+    positions: list[PositionView]
+    positions_value: float
+    total_value: float
+    total_unrealized_pnl: float
+
+
+async def compute_portfolio_view(
+    *, price_cache: PriceCache, user_id: str = DEFAULT_USER_ID
+) -> PortfolioView:
+    """Pure read: cash + positions joined with the live PriceCache, with
+    unrealized P&L and % change computed fresh on every call. Nothing here
+    is ever persisted to a column — PLAN.md §7's `positions` schema has no
+    P&L field, and a stored value would go stale the instant the price
+    ticks (01-RESEARCH.md Anti-Patterns).
+
+    Deliberately does NOT acquire the portfolio lock — it's a read-only
+    join, and execute_trade() calls it from inside its own already-held
+    asyncio.Lock (a non-reentrant lock), so taking it here would deadlock.
+    """
+    cash_balance = await users_profile.get_cash_balance(user_id)
+    held_positions = await positions.get_all_positions(user_id)
+
+    position_views: list[PositionView] = []
+    for position in held_positions:
+        tick = await price_cache.get(position.ticker)
+        if tick is None:
+            # Locked mark-to-cost fallback: reachable by buying a ticker and
+            # then removing it from the watchlist, since run_update_loop
+            # only prices watched tickers. Stays in positions_value at cost
+            # rather than silently dropping out of total_value.
+            position_views.append(
+                PositionView(
+                    ticker=position.ticker,
+                    quantity=position.quantity,
+                    avg_cost=position.avg_cost,
+                    current_price=None,
+                    market_value=round(position.quantity * position.avg_cost, 2),
+                    unrealized_pnl=0.0,
+                    pct_change=0.0,
+                )
+            )
+            continue
+
+        current_price = tick.price
+        # Rounded to cent/basis-point precision here (not on every read
+        # downstream), matching the "round once" convention already
+        # documented in app/market/simulator.py — division-based pct_change
+        # in particular is not exactly representable in binary float (e.g.
+        # 120.0/100.0 - 1) * 100 == 19.999999999999996, not 20.0) and would
+        # otherwise leak that imprecision straight into the API response.
+        market_value = round(position.quantity * current_price, 2)
+        unrealized_pnl = round(
+            (current_price - position.avg_cost) * position.quantity, 2
+        )
+        pct_change = (
+            round((current_price / position.avg_cost - 1) * 100, 2)
+            if position.avg_cost
+            else 0.0
+        )
+        position_views.append(
+            PositionView(
+                ticker=position.ticker,
+                quantity=position.quantity,
+                avg_cost=position.avg_cost,
+                current_price=current_price,
+                market_value=market_value,
+                unrealized_pnl=unrealized_pnl,
+                pct_change=pct_change,
+            )
+        )
+
+    positions_value = round(sum(view.market_value for view in position_views), 2)
+    total_unrealized_pnl = round(
+        sum(view.unrealized_pnl for view in position_views), 2
+    )
+
+    return PortfolioView(
+        cash_balance=cash_balance,
+        positions=position_views,
+        positions_value=positions_value,
+        total_value=round(cash_balance + positions_value, 2),
+        total_unrealized_pnl=total_unrealized_pnl,
+    )
+
+
+@dataclass(frozen=True)
 class TradeResult:
     status: Literal["executed", "error"]
     reason: str | None
