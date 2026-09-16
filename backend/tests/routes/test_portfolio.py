@@ -128,3 +128,71 @@ def test_buy_beyond_cash_is_rejected(client: TestClient) -> None:
     assert client.portal.call(users_profile_module.get_cash_balance) == 10000.0
     assert client.portal.call(positions_module.get_position, "CSCO") is None
     assert client.portal.call(trades_module.get_trades) == []
+
+
+def test_sell_credits_cash_and_reduces_position(client: TestClient) -> None:
+    # CSCO (not on DEFAULT_WATCHLIST) avoids the run_update_loop race — see
+    # test_buy_fills_at_cached_price_and_persists.
+    _seed_price(client, "CSCO", 100.0)
+    buy_resp = client.post(
+        "/api/portfolio/trade",
+        json={"ticker": "CSCO", "side": "buy", "quantity": 10},
+    )
+    assert buy_resp.status_code == 200
+
+    _seed_price(client, "CSCO", 120.0)
+    resp = client.post(
+        "/api/portfolio/trade",
+        json={"ticker": "CSCO", "side": "sell", "quantity": 4},
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["trade"]["side"] == "sell"
+    assert body["trade"]["price"] == 120.0
+    assert body["cash_balance"] == 9480.0
+    assert body["position"] == {"ticker": "CSCO", "quantity": 6.0, "avg_cost": 100.0}
+
+
+def test_sell_all_closes_position(client: TestClient) -> None:
+    _seed_price(client, "CSCO", 100.0)
+    client.post("/api/portfolio/trade", json={"ticker": "CSCO", "side": "buy", "quantity": 10})
+
+    _seed_price(client, "CSCO", 120.0)
+    resp = client.post(
+        "/api/portfolio/trade",
+        json={"ticker": "CSCO", "side": "sell", "quantity": 10},
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["position"] is None
+    assert client.portal.call(positions_module.get_position, "CSCO") is None
+
+
+def test_sell_fractional_remainder_keeps_row(client: TestClient) -> None:
+    _seed_price(client, "CSCO", 100.0)
+    client.post("/api/portfolio/trade", json={"ticker": "CSCO", "side": "buy", "quantity": 1.5})
+
+    resp = client.post(
+        "/api/portfolio/trade",
+        json={"ticker": "CSCO", "side": "sell", "quantity": 1.0},
+    )
+
+    assert resp.status_code == 200
+    position = client.portal.call(positions_module.get_position, "CSCO")
+    assert position is not None
+    assert position.quantity == 0.5
+    assert position.avg_cost == 100.0
+
+
+def test_sell_records_trade_row(client: TestClient) -> None:
+    _seed_price(client, "CSCO", 100.0)
+    client.post("/api/portfolio/trade", json={"ticker": "CSCO", "side": "buy", "quantity": 10})
+    client.post("/api/portfolio/trade", json={"ticker": "CSCO", "side": "sell", "quantity": 4})
+
+    trades = client.portal.call(trades_module.get_trades)
+
+    assert [t.side for t in trades] == ["buy", "sell"]
+
+
