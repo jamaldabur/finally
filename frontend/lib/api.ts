@@ -4,7 +4,12 @@
  * call `fetch` directly.
  */
 
-import type { PortfolioResponse, TradeRequest, TradeResponse } from "./types";
+import type {
+  PortfolioResponse,
+  TradeRequest,
+  TradeResponse,
+  WatchlistEntry,
+} from "./types";
 
 const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -12,6 +17,16 @@ export async function fetchPortfolio(): Promise<PortfolioResponse> {
   const res = await fetch(`${BASE}/api/portfolio`);
   if (!res.ok) {
     throw new Error(`GET /api/portfolio failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function fetchWatchlist(): Promise<{
+  watchlist: WatchlistEntry[];
+}> {
+  const res = await fetch(`${BASE}/api/watchlist`);
+  if (!res.ok) {
+    throw new Error(`GET /api/watchlist failed: ${res.status}`);
   }
   return res.json();
 }

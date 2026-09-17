@@ -1,21 +1,17 @@
 "use client";
 
-import { usePriceStore } from "@/lib/priceStore";
 import { usePortfolio } from "@/lib/portfolioStore";
 import { TradeBar } from "@/components/trade-bar/TradeBar";
+import { WatchlistPanel } from "@/components/watchlist/WatchlistPanel";
 import { formatCurrency } from "@/lib/format";
 
 // D-08 single-page shell: a full-width header band pinned at the top, a
-// left column (watchlist + trade bar — watchlist arrives in Plan 02-02),
-// and a right/main column reserved for the positions table (Plan 02-03).
-// Task 1 proved the live-price path with a single AAPL readout in the left
-// column; Task 2 adds the trade bar beneath it and live cash/total value
-// in the header, sourced from usePortfolio() (D-04) rather than computed
-// here.
+// left column (watchlist above the trade bar), and a right/main column
+// reserved for the positions table (Plan 02-03). Plan 02-01's single AAPL
+// tracer readout is replaced here by the full WatchlistPanel (UI-01) — the
+// panel is now the live-price surface for the left column.
 export default function Home() {
-  const { prices } = usePriceStore();
   const { portfolio } = usePortfolio();
-  const aapl = prices.get("AAPL");
 
   return (
     <div className="flex min-h-screen flex-col bg-terminal-bg text-terminal-text">
@@ -41,14 +37,7 @@ export default function Home() {
 
       <div className="flex flex-1 gap-6 p-6">
         <div className="flex w-80 flex-shrink-0 flex-col gap-4">
-          <section className="rounded-lg border border-terminal-border bg-terminal-panel p-4">
-            <h2 className="mb-2 text-sm font-medium text-terminal-text-muted">
-              AAPL
-            </h2>
-            <p className="text-2xl font-semibold tabular-nums">
-              {aapl ? aapl.price.toFixed(2) : "—"}
-            </p>
-          </section>
+          <WatchlistPanel />
           <TradeBar />
         </div>
 
