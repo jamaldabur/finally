@@ -30,3 +30,20 @@ def test_lifespan_wires_massive_when_api_key_set(monkeypatch, tmp_path):
     app = create_app()
     with TestClient(app):
         assert isinstance(app.state.market_source, MassiveMarketDataSource)
+
+
+def test_cors_allows_local_dev_frontend_origin(monkeypatch, tmp_path):
+    # Plan 02-01: next dev (:3000) must be able to reach this backend (:8000)
+    # cross-origin during local development (see CORSMiddleware comment in
+    # app/main.py).
+    monkeypatch.delenv("MASSIVE_API_KEY", raising=False)
+
+    app = create_app()
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/health", headers={"Origin": "http://localhost:3000"}
+        )
+        assert (
+            response.headers.get("access-control-allow-origin")
+            == "http://localhost:3000"
+        )

@@ -11,6 +11,7 @@ import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from .db import chat_messages, portfolio_snapshots, positions, trades, users_profile
 from .db.watchlist import get_watchlist_tickers, init_db
@@ -74,6 +75,21 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     app = FastAPI(title="FinAlly", lifespan=lifespan)
+    # Dev-only convenience: `next dev` (Plan 02-01) runs on :3000 while this
+    # backend runs on :8000, and `output: 'export'` forecloses the usual
+    # Next.js dev-proxy trick (02-RESEARCH.md Pitfall 1), so the frontend
+    # talks to the backend cross-origin during local development. Scoped to
+    # exactly one explicit origin, no credentials — PLAN.md §3 production
+    # architecture is same-origin (FastAPI serves the static export), so this
+    # middleware is inert there. Phase 5 should decide whether it ships in
+    # the Docker image at all once frontend and backend are always
+    # same-origin.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:3000"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.include_router(health.router)
     app.include_router(stream.router)
     app.include_router(portfolio.router)

@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+/* Dark trading-terminal theme (PLAN.md §2, D-09). Tailwind v4 is CSS-first —
+   theme customization lives here as `@theme` custom properties, not in a
+   `tailwind.config.js` (02-RESEARCH.md Pitfall 5). These five values are
+   locked exactly per PLAN.md §2; `--color-terminal-bg` is the darkest
+   surface in the app (muted gray borders, no pure black). */
+@theme {
+  --color-terminal-bg: #0d1117;
+  --color-terminal-panel: #1a1a2e;
+  --color-terminal-border: #30363d;
+  --color-accent-yellow: #ecad0a;
+  --color-accent-blue: #209dd7;
+  --color-accent-purple: #753991;
+  --color-terminal-text: #e6edf3;
+  --color-terminal-text-muted: #8b949e;
+}
+
+body {
+  background-color: var(--color-terminal-bg);
+  color: var(--color-terminal-text);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
