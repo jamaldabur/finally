@@ -96,13 +96,13 @@ Plans:
   4. The chat panel hydrates prior conversation history from `GET /api/chat` on mount, surviving a page refresh
   5. With `LLM_MOCK=true`, chat returns deterministic mock responses without calling OpenRouter
 
-**Plans:** 4 plans
+**Plans:** 1/4 plans executed
 **UI hint**: yes
 
 Plans:
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Tracer: a chat message becomes a real executed trade — LLM structured output, shared validation path, annotated outcomes (wave 1)
+- [x] 03-01-PLAN.md — Tracer: a chat message becomes a real executed trade — LLM structured output, shared validation path, annotated outcomes (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -169,7 +169,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|-----------------|--------|-----------|
 | 1. Backend Trading Engine | 4/4 | Complete    | 2026-09-16 |
 | 2. Core Trading UI | 3/3 | Complete    | 2026-09-17 |
-| 3. AI Chat Copilot | 0/4 | Planned     | - |
+| 3. AI Chat Copilot | 1/4 | In Progress|  |
 | 4. Portfolio Visualization | TBD | Not started | - |
 | 5. Docker Packaging & Deployment | TBD | Not started | - |
 | 6. Test Coverage | TBD | Not started | - |

@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
 current_phase: 03
-current_phase_name: ai-chat-copilot
+current_phase_name: AI Chat Copilot
 status: executing
-stopped_at: Phase 3 UI-SPEC approved
-last_updated: "2026-09-17T22:16:37.534Z"
-last_activity: 2026-09-17
-last_activity_desc: Phase 02 complete, transitioned to Phase 3
-state_head: ef04cc9483609ae936df720107c90d98b05e215c
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-09-17T23:46:07.270Z"
+last_activity: 2026-09-18
+last_activity_desc: Phase 03 execution started
+state_head: 4005a41523a5ed78bcd52848bd4f58df4352c6cb
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 11
-  completed_plans: 7
+  completed_plans: 8
   percent: 33
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-17)
 
 **Core value:** A user can watch live prices, trade a simulated portfolio, and have an AI copilot execute trades on their behalf — the full agentic trading loop (watch → decide → chat → execute → see it reflected in the portfolio) must work end-to-end.
-**Current focus:** Phase 3 — AI Chat Copilot
+**Current focus:** Phase 03 — AI Chat Copilot
 
 ## Current Position
 
-Phase: 03 (ai-chat-copilot) — READY TO EXECUTE
-Plan: Not started
+Phase: 03 (AI Chat Copilot) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-09-17 — Phase 02 complete, transitioned to Phase 3
+Last activity: 2026-09-18 — Phase 03 execution started
 
 Progress: [███░░░░░░░] 33%
 
@@ -66,6 +66,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 02 P01 | 19min | 3 tasks | 5 files |
 | Phase 02 P02 | 24min | 2 tasks | 5 files |
 | Phase 02 P03 | 11min | 3 tasks | 9 files |
+| Phase 03 P01 | 24min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,8 @@ Recent decisions affecting current work:
 - [Phase 02]: [Phase 02-03]: Numeric-cell monospace font applied via one global .tabular-nums { font-family } CSS rule rather than threading a second utility class into WatchlistRow/PriceCell (outside this plan's file scope) — reaches every existing tabular-nums element site-wide
 - [Phase 02]: [Phase 02-03]: portfolioStore's 5s refresh interval and TradeBar's post-trade refresh share one isRefreshingRef guard, so an in-flight fetch from either source blocks a second overlapping fetch
 - [Phase 02]: [Phase 02-03]: priceStore's D-06 grace-timer uses a single useRef timer handle, always cleared before being re-armed on onopen/prices/onerror, so interleaved error/recovery events can never leave the connection dot stuck red while the stream is live
+- [Phase 03]: [Phase 03-01]: LLM model switched from openrouter/openai/gpt-oss-120b to openrouter/openrouter/free after live verification hit 402 insufficient credits on the original model (user-directed, re-verified end-to-end before continuing)
+- [Phase 03]: [Phase 03-01]: execute_trade() gains a leading quantity/side validation guard (before ticker normalization and is_valid_ticker) closing the Phase 1 WR-01/WR-02 blocker, since the chat flow calls it directly bypassing the HTTP route's Pydantic layer
 
 ### Pending Todos
 
@@ -100,7 +103,6 @@ None yet.
 
 - REQUIREMENTS.md's original "34 total" coverage count was a pre-enumeration estimate; the actual enumerated v1 list contains 40 REQ-IDs. Traceability table and coverage count corrected to 40/40 during roadmap creation.
 - Known tech debt in the existing market data layer (sync SQLite via `asyncio.to_thread`, no connection pooling, inline schema definitions, broad exception handling in the update loop) is acceptable at current single-user demo scale per `.planning/codebase/CONCERNS.md` — not blocking, not required to fix this milestone.
-- [Phase 1] `execute_trade()` does not validate `quantity > 0` or `side` itself — relies entirely on the HTTP route's Pydantic layer. A direct call (Phase 3's chat flow calls it directly, bypassing the route) with a bad quantity can mint free cash or raise an uncaught `ZeroDivisionError` inside the portfolio lock. Flagged by 01-REVIEW.md (WR-01/WR-02), added to PROJECT.md Active requirements — worth fixing before or during Phase 3.
 - [Phase 1] The 30s background snapshot recorder (`run_portfolio_snapshot_loop`) does not hold `portfolio_lock`, unlike the on-trade snapshot insert — a trade racing the recorder's read could record a torn (partially-committed) `total_value` into the never-pruned `portfolio_snapshots` table. Flagged by 01-REVIEW.md (WR-03); narrow window, no test currently covers it.
 
 ## Deferred Items
@@ -113,6 +115,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-17T18:30:06.243Z
-Stopped at: Phase 3 UI-SPEC approved
-Resume file: .planning/phases/03-ai-chat-copilot/03-UI-SPEC.md
+Last session: 2026-09-17T23:46:07.170Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: None
