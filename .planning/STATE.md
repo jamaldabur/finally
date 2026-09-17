@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Core Trading UI
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-09-17T08:07:40.436Z"
-last_activity: 2026-09-16
-last_activity_desc: Phase 01 complete, transitioned to Phase 2
-state_head: 6e30c0d27d03cc8b8438c1afcc4d688daeb72265
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-09-17T09:08:04.270Z"
+last_activity: 2026-09-17
+last_activity_desc: Phase 02 execution started
+state_head: ac918b51b370e4b770c232f29253b0d87ed0d167
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 7
-  completed_plans: 4
+  completed_plans: 5
   percent: 17
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-16)
 
 **Core value:** A user can watch live prices, trade a simulated portfolio, and have an AI copilot execute trades on their behalf — the full agentic trading loop (watch → decide → chat → execute → see it reflected in the portfolio) must work end-to-end.
-**Current focus:** Phase 2 — Core Trading UI
+**Current focus:** Phase 02 — Core Trading UI
 
 ## Current Position
 
-Phase: 02 (Core Trading UI) — READY TO EXECUTE
-Plan: Not started
+Phase: 02 (Core Trading UI) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-09-16 — Phase 01 complete, transitioned to Phase 2
+Last activity: 2026-09-17 — Phase 02 execution started
 
 Progress: [██░░░░░░░░] 17%
 
@@ -62,6 +62,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 01 P01-02 | 25min | 3 tasks | 4 files |
 | Phase 01 P01-03 | 11min | 3 tasks | 10 files |
 | Phase 01 P01-04 | 15min | 3 tasks | 9 files |
+| Phase 02 P01 | 19min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Resolved a pytest module-basename collision between tests/db/test_watchlist.py and the plan-locked tests/routes/test_watchlist.py by adding package __init__.py files rather than renaming either file
 - [Phase 01]: [Phase 01]: portfolio_snapshots.init_db() wired into app/main.py's lifespan during Task 2 instead of Task 3, since GET /api/portfolio/history (a Task 2 deliverable) needs the table to exist
 - [Phase 01]: [Phase 01]: Rounded compute_portfolio_view()'s derived monetary/percentage values to cent precision to match app/market/simulator.py's round-once convention and avoid float-precision leaking into the locked API contract
+- [Phase 02]: [Phase 02-01]: typescript pinned to 6.0.3 (not the plan's 7.0.2) because eslint-config-next@16.3.5's bundled typescript-eslint@8.70.0 requires typescript <6.1.0
+- [Phase 02]: [Phase 02-01]: portfolioStore.tsx's mount-time fetch is a self-contained async IIFE effect, not a call to the exported refresh() callback, to satisfy eslint-plugin-react-hooks 7.1.1's set-state-in-effect rule
 
 ### Pending Todos
 
@@ -102,6 +105,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-16T21:08:55.153Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-core-trading-ui/02-CONTEXT.md
+Last session: 2026-09-17T09:08:04.187Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None

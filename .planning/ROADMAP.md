@@ -66,13 +66,13 @@ Plans:
   4. The header shows live total portfolio value, cash balance, and a connection status dot reflecting SSE connection state
   5. The UI renders in the dark trading-terminal theme (colors, density) specified in PLAN.md §2
 
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 **UI hint**: yes
 
 Plans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Tracer: scaffold `frontend/`, stream one live price end-to-end, and place real buy/sell market orders from the trade bar (wave 1)
+- [x] 02-01-PLAN.md — Tracer: scaffold `frontend/`, stream one live price end-to-end, and place real buy/sell market orders from the trade bar (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -154,7 +154,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
 | 1. Backend Trading Engine | 4/4 | Complete    | 2026-09-16 |
-| 2. Core Trading UI | 0/3 | Not started | - |
+| 2. Core Trading UI | 1/3 | In Progress|  |
 | 3. AI Chat Copilot | TBD | Not started | - |
 | 4. Portfolio Visualization | TBD | Not started | - |
 | 5. Docker Packaging & Deployment | TBD | Not started | - |
