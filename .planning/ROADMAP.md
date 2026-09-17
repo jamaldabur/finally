@@ -14,7 +14,7 @@ FinAlly already has a working market data layer (simulator + Massive REST client
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Backend Trading Engine** - Complete DB schema, portfolio state, trade execution, and watchlist mutation behind REST endpoints (completed 2026-09-16)
-- [ ] **Phase 2: Core Trading UI** - Minimal Next.js frontend wiring watchlist, trade bar, positions, and header to the live backend
+- [x] **Phase 2: Core Trading UI** - Minimal Next.js frontend wiring watchlist, trade bar, positions, and header to the live backend (completed 2026-09-17)
 - [ ] **Phase 3: AI Chat Copilot** - LLM chat assistant that analyzes the portfolio and auto-executes trades/watchlist changes
 - [ ] **Phase 4: Portfolio Visualization** - Sparklines, main chart, portfolio heatmap, and P&L history chart
 - [ ] **Phase 5: Docker Packaging & Deployment** - Single-container multi-stage build with volume-mounted SQLite and start/stop scripts
@@ -66,7 +66,7 @@ Plans:
   4. The header shows live total portfolio value, cash balance, and a connection status dot reflecting SSE connection state
   5. The UI renders in the dark trading-terminal theme (colors, density) specified in PLAN.md §2
 
-**Plans:** 3/3 plans executed
+**Plans:** 3/3 plans complete
 **UI hint**: yes
 
 Plans:
@@ -154,7 +154,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Plans Complete | Status | Completed |
 |-------|-----------------|--------|-----------|
 | 1. Backend Trading Engine | 4/4 | Complete    | 2026-09-16 |
-| 2. Core Trading UI | 3/3 | In Progress|  |
+| 2. Core Trading UI | 3/3 | Complete    | 2026-09-17 |
 | 3. AI Chat Copilot | TBD | Not started | - |
 | 4. Portfolio Visualization | TBD | Not started | - |
 | 5. Docker Packaging & Deployment | TBD | Not started | - |
