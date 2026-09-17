@@ -15,6 +15,7 @@ import type { WatchlistEntry } from "@/lib/types";
 
 export function WatchlistPanel() {
   const [entries, setEntries] = useState<WatchlistEntry[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -22,9 +23,17 @@ export function WatchlistPanel() {
     (async () => {
       try {
         const { watchlist } = await fetchWatchlist();
-        if (!cancelled) setEntries(watchlist);
-      } catch {
-        if (!cancelled) setEntries([]);
+        if (!cancelled) {
+          setEntries(watchlist);
+          setError(null);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(
+            e instanceof Error ? e.message : "Failed to load watchlist",
+          );
+          setEntries([]);
+        }
       }
     })();
 
@@ -46,7 +55,13 @@ export function WatchlistPanel() {
         </p>
       )}
 
-      {entries !== null && entries.length === 0 && (
+      {entries !== null && error && (
+        <p className="text-sm text-red-400" role="alert">
+          {error}
+        </p>
+      )}
+
+      {entries !== null && !error && entries.length === 0 && (
         <p className="text-sm text-terminal-text-muted">
           No tickers on the watchlist.
         </p>
