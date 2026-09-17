@@ -3,9 +3,9 @@ phase: "02"
 slug: "core-trading-ui"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
 # audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: "2026-09-17"
 ---
 
@@ -42,11 +42,11 @@ Task/Plan/Wave columns are seeded TBD — plans do not exist yet at research tim
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD | TBD | TBD | UI-01 | — | Watchlist flashes green/red only on real SSE price change (`price !== previous_price`), never on unchanged heartbeat resend | manual (browser) | — | ❌ Wave 0 | ⬜ pending |
-| TBD | TBD | TBD | UI-06 | — | Positions table shows ticker/quantity/avg_cost/current_price/unrealized_pnl/pct_change, staying live | manual (browser) | — | ❌ Wave 0 | ⬜ pending |
-| TBD | TBD | TBD | UI-07 | V5 (input validation, defense-in-depth only) | Trade bar buy/sell submits and reflects cash/position update, no confirmation dialog | manual (browser) | — | ❌ Wave 0 | ⬜ pending |
-| TBD | TBD | TBD | UI-09 | — | Header shows live total value, cash, connection dot reflecting SSE state | manual (browser) | — | ❌ Wave 0 | ⬜ pending |
-| TBD | TBD | TBD | UI-10 | — | Dark trading-terminal theme renders per PLAN.md §2 (colors, density) | manual (visual review) | — | ❌ Wave 0 | ⬜ pending |
+| 02-02 T1/T2 | 02-02 | 2 | UI-01 | T-02-08 | Watchlist flashes green/red only on real SSE price change (own-ref comparison), never on unchanged heartbeat resend | manual (browser) — 02-UAT.md test 5 | — | ❌ (manual by design) | ✅ green |
+| 02-03 T1 | 02-03 | 3 | UI-06 | T-02-12 | Positions table shows ticker/quantity/avg_cost/current_price/unrealized_pnl/pct_change, staying live | manual (browser) — 02-UAT.md test 6 | — | ❌ (manual by design) | ✅ green |
+| 02-01 T2 | 02-01 | 1 | UI-07 | T-02-02/T-02-03 | Trade bar buy/sell submits and reflects cash/position update, no confirmation dialog | manual (browser) — 02-UAT.md tests 2/3/4 | — | ❌ (manual by design) | ✅ green |
+| 02-03 T2 | 02-03 | 3 | UI-09 | T-02-09/T-02-10/T-02-11 | Header shows live total value, cash, connection dot reflecting SSE state | manual (browser) — 02-UAT.md test 7 | — | ❌ (manual by design) | ✅ green |
+| 02-01 T1 / 02-03 T3 | 02-01, 02-03 | 1, 3 | UI-10 | — | Dark trading-terminal theme renders per PLAN.md §2 (colors, density) | manual (visual review) — 02-UAT.md tests 1/8 | — | ❌ (manual by design) | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -70,13 +70,23 @@ No test-framework installation is required this phase. Automated frontend testin
 
 ---
 
+## Validation Audit 2026-09-17
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+No gaps: this phase's validation strategy was manual-by-design from research time (RESEARCH.md § Validation Architecture, Phase 6/`TEST-04` owns the automated frontend suite), not an unaddressed hole. All 5 manual-only behaviors were executed and passed in `02-UAT.md` (8/8 tests passed, 0 issues) — each row above maps to the concrete plan/task that built it and the UAT test that verified it live, filled in now that execution is complete.
+
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies — N/A this phase; manual verification is the documented, intentional strategy (see RESEARCH.md § Validation Architecture)
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify — N/A, no automated tests this phase
-- [ ] Wave 0 covers all MISSING references — N/A, no Wave 0 test-framework work needed
-- [ ] No watch-mode flags — N/A
-- [ ] Feedback latency < {N}s — N/A (manual verification, not timed sampling)
-- [ ] `nyquist_compliant: true` set in frontmatter — remains `false` until `/gsd-validate-phase` confirms
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies — N/A this phase; manual verification is the documented, intentional strategy (see RESEARCH.md § Validation Architecture), and it was actually executed (02-UAT.md, 8/8 passed)
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify — N/A, no automated tests this phase
+- [x] Wave 0 covers all MISSING references — N/A, no Wave 0 test-framework work needed
+- [x] No watch-mode flags — N/A
+- [x] Feedback latency < {N}s — N/A (manual verification, not timed sampling)
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** verified 2026-09-17
