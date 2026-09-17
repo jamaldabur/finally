@@ -4,7 +4,17 @@
    theme customization lives here as `@theme` custom properties, not in a
    `tailwind.config.js` (02-RESEARCH.md Pitfall 5). These five values are
    locked exactly per PLAN.md §2; `--color-terminal-bg` is the darkest
-   surface in the app (muted gray borders, no pure black). */
+   surface in the app (muted gray borders, no pure black).
+
+   `--color-terminal-border` and `--color-terminal-text-muted` (added in
+   Plan 02-01) are the muted-border and dim-text tokens every panel shares.
+   `--color-gain`/`--color-loss` (added here, Task 3) match the green/red
+   already used by PriceCell's flash (`bg-green-500`/`bg-red-500`) and the
+   watchlist's change-percent text (`text-green-400`/`text-red-400`), so a
+   future consumer has one named token to reach for instead of picking a
+   Tailwind shade ad hoc. `--font-numeric` is the single near-monospace
+   family for every numeric cell, paired with the `tabular-nums` utility so
+   streaming prices don't jitter column width as digits change. */
 @theme {
   --color-terminal-bg: #0d1117;
   --color-terminal-panel: #1a1a2e;
@@ -14,6 +24,11 @@
   --color-accent-purple: #753991;
   --color-terminal-text: #e6edf3;
   --color-terminal-text-muted: #8b949e;
+  --color-gain: #4ade80;
+  --color-loss: #f87171;
+  --font-numeric:
+    "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, ui-monospace,
+    monospace;
 }
 
 body {
@@ -21,4 +36,12 @@ body {
   color: var(--color-terminal-text);
   font-family:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Every numeric cell already carries Tailwind's `tabular-nums` utility
+   (watchlist rows since Plan 02-02, positions rows since Plan 02-03) —
+   this rule gives every one of them the single numeric font family too,
+   without threading a second utility class through each component. */
+.tabular-nums {
+  font-family: var(--font-numeric);
 }

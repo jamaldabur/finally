@@ -48,10 +48,10 @@ export function TradeBar() {
 
   return (
     <section className="rounded-lg border border-terminal-border bg-terminal-panel p-4">
-      <h2 className="mb-3 text-sm font-medium text-terminal-text-muted">
+      <h2 className="mb-2 text-sm font-medium text-terminal-text-muted">
         Trade
       </h2>
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
         <label className="flex flex-col gap-1 text-xs text-terminal-text-muted">
           Ticker
           <input
