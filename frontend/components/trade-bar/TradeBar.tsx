@@ -29,6 +29,15 @@ export function TradeBar() {
     const normalizedTicker = ticker.trim().toUpperCase();
     const parsedQuantity = Number(quantity);
 
+    if (!normalizedTicker) {
+      setError("Enter a ticker.");
+      return;
+    }
+    if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+      setError("Enter a quantity greater than 0.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await postTrade({
@@ -68,6 +77,7 @@ export function TradeBar() {
           <input
             type="number"
             step="any"
+            min="0"
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
             placeholder="0"
