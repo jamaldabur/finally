@@ -3,6 +3,7 @@
 import { usePortfolio } from "@/lib/portfolioStore";
 import { TradeBar } from "@/components/trade-bar/TradeBar";
 import { WatchlistPanel } from "@/components/watchlist/WatchlistPanel";
+import { PositionsTable } from "@/components/positions/PositionsTable";
 import { formatCurrency } from "@/lib/format";
 
 // D-08 single-page shell: a full-width header band pinned at the top, a
@@ -41,7 +42,9 @@ export default function Home() {
           <TradeBar />
         </div>
 
-        <main className="flex-1 rounded-lg border border-terminal-border bg-terminal-panel p-4" />
+        <main className="flex-1 rounded-lg border border-terminal-border bg-terminal-panel p-4">
+          <PositionsTable />
+        </main>
       </div>
     </div>
   );
