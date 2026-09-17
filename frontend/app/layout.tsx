@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PriceStoreProvider } from "@/lib/priceStore";
+import { PortfolioProvider } from "@/lib/portfolioStore";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,9 +27,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       {/* PriceStoreProvider is mounted once here so exactly one EventSource
           exists for the whole app (D-05); every future page/component reads
-          live prices from this provider instead of opening its own. */}
+          live prices from this provider instead of opening its own.
+          PortfolioProvider nests inside it and is the only way portfolio
+          state (cash, positions, P&L) ever changes — via its refresh(),
+          never client-derived (D-04). */}
       <body className="min-h-full flex flex-col bg-terminal-bg text-terminal-text">
-        <PriceStoreProvider>{children}</PriceStoreProvider>
+        <PriceStoreProvider>
+          <PortfolioProvider>{children}</PortfolioProvider>
+        </PriceStoreProvider>
       </body>
     </html>
   );
