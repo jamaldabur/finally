@@ -127,22 +127,51 @@ Additional rows this phase needs (chat has interaction copy the template's five 
 > error-state COPY live in `## Copywriting Contract` above — this section covers state
 > coverage and REFERENCES those rows rather than restating the copy.
 
-Applicable state considerations resolved: 8 covered, 2 backstop, 0 unresolved.
+Ran the deterministic `ui-consideration-probe` engine over 7 described surfaces (message list,
+user bubble, assistant bubble, action badges, input row, panel dock, scroll-to-latest pill) —
+36 applicable (element × category) combinations, consolidated below into 33 rows. Every
+applicable combination is resolved: 23 explicit, 3 backstop, 7 dismissed as not-applicable
+(reason given per row — dismissal is a recorded resolution, never a silent drop). 0 unresolved.
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
-| empty | chat message list, first load / cleared history | ✅ covered | Renders the "Ask FinAlly anything" empty-state heading + body (see Copywriting Contract) instead of an empty scroll area |
-| loading | send (waiting for `POST /api/chat`) | ✅ covered | Transient assistant-styled bubble with animated dots + `aria-live` text, per Copywriting Contract; input disabled while in flight (matches `TradeBar`'s `isSubmitting` disable pattern) |
-| loading | history hydrate (`GET /api/chat` on mount) | ✅ covered | "Loading conversation…" text, identical pattern to existing `WatchlistPanel`/`PositionsTable` loading copy |
-| error | send failure (network/LLM error) | ✅ covered | Centered inline system notice in the scroll list (see Copywriting Contract), styled with the app's existing `text-sm text-red-400 role="alert"` convention, boxed so it doesn't blend into message bubbles |
-| error | history hydrate failure | ✅ covered | Single `text-red-400` alert line in the message-list area; input remains enabled — a failed hydrate degrades gracefully, it does not block new messages (CHAT-05 is about restoring prior history, not gating current use) |
-| partial | one assistant response with mixed action outcomes (e.g. 2 of 3 requested trades executed) | ✅ covered | Each action gets its own independent badge; badges render as a vertically stacked list below the bubble in the same order as the `trades[]`/`watchlist_changes[]` arrays (trades first, per PLAN.md §9's schema order) — never aggregated into one pass/fail summary |
-| zero-one-many | actions attached to a single assistant message | ✅ covered | 0 actions → no badge row rendered at all; 1 or many → same stacked-badge layout, no pluralized copy needed since each badge is a self-contained pill |
-| populated / structural | collapsed vs. expanded panel state | ✅ covered | Defaults to **expanded** on first load (root `PLAN.md` Vision: "An AI chat panel ready to assist" is visible at first launch); collapse persists only in React state for the session, not localStorage — resets to expanded on reload (see Assumption below) |
-| overflow | long scrollback as conversation history grows (Pitfall 5) | 🧪 backstop | Message list is `overflow-y-auto` with auto-scroll-to-bottom on new content, suppressed once the user scrolls up (replaced by the "New messages ↓" pill). The exact scroll-jank/visual behavior under a long real session should be spot-checked manually rather than treated as guaranteed correct from this spec alone. |
-| long-text | very long user/assistant message text, or a long verbatim error `reason` string in a badge | 🧪 backstop | Bubbles and badges wrap (`max-w-[85%]`, no truncation) rather than clipping; behavior for a single unbroken long token (no spaces) is a CSS `break-words` case that should be visually spot-checked, not assumed correct sight-unseen |
+| empty | Message list, first load / cleared history | ✅ resolved (explicit) | Renders the "Ask FinAlly anything" empty-state heading + body (Copywriting Contract) instead of an empty scroll area |
+| empty | Assistant bubble | dismissed — N/A | A bubble only renders when there is message content; the zero-messages case is the list-level empty state above, not a per-bubble state |
+| empty | Action badges | ✅ resolved (explicit) | Zero actions → no badge row rendered at all |
+| empty | Chat input | ✅ resolved (explicit) | Placeholder copy shown when empty: "Ask about your portfolio, or tell FinAlly to trade…" |
+| loading | History hydrate (`GET /api/chat` on mount) | ✅ resolved (explicit) | "Loading conversation…" text, identical pattern to existing `WatchlistPanel`/`PositionsTable` loading copy |
+| loading | Send (waiting for `POST /api/chat`) | ✅ resolved (explicit) | Transient assistant-styled bubble with animated dots + `aria-live` text; input disabled while in flight (matches `TradeBar`'s `isSubmitting` disable pattern) |
+| loading | Action badges | dismissed — N/A | Badges render synchronously with the already-completed (non-streaming) response — no separate badge-loading state beyond the message loading indicator above |
+| loading | Chat input | ✅ resolved (explicit) | Input disabled while a message is in flight (same trigger as the send-loading row above) |
+| error | History hydrate failure | ✅ resolved (explicit) | Single `text-red-400` alert line in the message-list area; input remains enabled — a failed hydrate degrades gracefully (CHAT-05 restores prior history, it doesn't gate current use) |
+| error | Send failure (network/LLM error) | ✅ resolved (explicit) | Centered inline system notice, styled `text-sm text-red-400 role="alert"`, boxed so it doesn't blend into message bubbles |
+| error | Action badges | ✅ resolved (explicit) | Error badge format `✕ {SIDE} {qty} {TICKER} — {reason}`, `{reason}` is the verbatim backend string, never rephrased |
+| error | Chat input, on send failure | 🧪 backstop | Typed message is assumed to remain in the input (not cleared) so the user can retry without retyping — not stated in any upstream artifact; behavior should be confirmed during implementation/UAT, not assumed from spec alone |
+| populated | Message list, user + assistant bubbles | ✅ resolved (explicit) | Interleaved right-aligned user / left-aligned assistant bubbles per Layout & Interaction Contract |
+| populated | Action badges (executed) | ✅ resolved (explicit) | `✓ {SIDE} {qty} {TICKER} @ {price}` for trades / `✓ Added/Removed {TICKER}...` for watchlist changes |
+| populated | Chat input, filled | ✅ resolved (explicit) | Standard input styling, matches `TradeBar`'s existing input precedent |
+| partial | Message list / assistant bubble, partially-rendered text | dismissed — N/A | The chat call is non-streaming (PLAN.md §9) — a bubble either doesn't exist yet (loading variant) or renders complete text; there is no partially-rendered-text state |
+| partial | Action badges, mixed outcomes (e.g. 2 of 3 trades executed) | ✅ resolved (explicit) | Each action gets its own independent badge, stacked in `trades[]`/`watchlist_changes[]` order — never aggregated into one pass/fail summary |
+| partial | Chat input, partially typed | dismissed — N/A | A single-line input has no state distinct from populated — text is either empty or contains whatever has been typed so far |
+| overflow | Message list, long scrollback (Pitfall 5) | 🧪 backstop | `overflow-y-auto` with auto-scroll-to-bottom, suppressed on user scroll-up and replaced by the "New messages ↓" pill. Exact scroll-jank behavior under a long real session should be spot-checked manually, not assumed correct from this spec alone |
+| overflow | User + assistant bubbles, long text | ✅ resolved (explicit) | Bubbles wrap (`max-w-[85%]`), never clip |
+| overflow | Action badges, many in one message | ✅ resolved (explicit) | Badges stack vertically (`flex-col`) — any count scales without layout change, no horizontal overflow risk |
+| overflow | Chat input, typed text exceeds width | ✅ resolved (explicit) | Standard native `<input>` horizontal-scroll behavior, matches `TradeBar`'s existing input precedent |
+| overflow | Collapsed rail | ✅ resolved (explicit) | Fixed 48px rail is static UI chrome, not user content — no overflow risk |
+| zero-one-many | Message list, message count | ✅ resolved (explicit) | Zero → empty state (row 1); one or many → same scrollable list layout, no pluralized copy needed at the list level |
+| zero-one-many | Individual bubble | dismissed — N/A | A single bubble has no "many" variant of itself — message-count zero/one/many is the list-level consideration above |
+| zero-one-many | Action badges, count per message | ✅ resolved (explicit) | 0 → no badge row; 1 or many → same stacked-badge layout, no pluralized copy needed since each badge is self-contained |
+| zero-one-many | Chat input | dismissed — N/A | Not a list/collection — no zero-one-many axis applies to a single text field |
+| long-text | Message list (aggregate) | ✅ resolved (explicit) | Same wrap/scroll handling as its constituent bubbles — no separate list-level long-text behavior |
+| long-text | User/assistant bubble text, or a long verbatim badge `reason` string | 🧪 backstop | Bubbles/badges wrap (`max-w-[85%]`, `break-words`); a single unbroken long token is a CSS case that should be visually spot-checked, not assumed correct sight-unseen |
+| long-text | Chat input, long typed text | ✅ resolved (explicit) | Same native horizontal-scroll behavior as the overflow row above |
+| long-text | Collapsed rail label | dismissed — N/A | The rail label is a fixed, short static string ("Chat"), not user-generated content — no long-text risk |
+| populated / structural | Collapsed vs. expanded panel state | ✅ resolved (explicit) | Defaults to **expanded** on first load (root `PLAN.md` Vision: "An AI chat panel ready to assist" is visible at first launch); collapse persists only in React state for the session, not `localStorage` — resets to expanded on reload (see Assumption below) |
+| unclassified | Scroll-to-latest pill | ✅ resolved (explicit) | This pill is the visibility-toggle for the message-list overflow/auto-scroll row above — appears only when the user has scrolled up during new activity; no separate state axis needed |
 
 **Assumption (collapse persistence):** Session-only collapse state (no `localStorage`) is the simplest option consistent with this project's zero-persistence-beyond-what's-stated ethos and was not explicitly required by any upstream artifact. If the planner or user wants collapse state to survive a page reload, that is a small, additive change to this contract, not a conflicting one.
+
+**Assumption (retry text retention):** The one genuinely undecided item above (chat input on send failure) defaults to retaining typed text — reversible, low-stakes, confirm during UAT.
 
 ---
 
