@@ -16,6 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app.llm.client as llm_client_module
+from app.db import chat_messages as chat_messages_module
 from app.main import create_app
 
 
@@ -113,3 +114,81 @@ def test_chat_with_llm_mock(client: TestClient, monkeypatch) -> None:
     resp = client.post("/api/chat", json={"message": "buy 1 CSCO"})
 
     assert resp.status_code == 200
+
+
+def test_get_chat_on_empty_database_returns_empty_history(client: TestClient) -> None:
+    """Test 6: GET /api/chat on a fresh database returns 200 with no
+    messages."""
+    resp = client.get("/api/chat")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"messages": []}
+
+
+def test_get_chat_hydrates_history(client: TestClient, monkeypatch) -> None:
+    """Test 7 — name referenced verbatim by 03-VALIDATION.md's Per-Task
+    Verification Map. After one POST /api/chat, GET /api/chat returns
+    exactly two messages: the user message, then the assistant message with
+    its annotated actions."""
+    monkeypatch.setenv("LLM_MOCK", "true")
+
+    post_resp = client.post("/api/chat", json={"message": "what is my portfolio worth?"})
+    assert post_resp.status_code == 200
+
+    history_resp = client.get("/api/chat")
+    assert history_resp.status_code == 200
+    body = history_resp.json()
+
+    assert len(body["messages"]) == 2
+    assert body["messages"][0]["role"] == "user"
+    assert body["messages"][0]["content"] == "what is my portfolio worth?"
+    assert body["messages"][1]["role"] == "assistant"
+    assert "trades" in body["messages"][1]
+    assert "watchlist_changes" in body["messages"][1]
+
+
+def test_get_chat_carries_executed_trade_outcome(client: TestClient, monkeypatch) -> None:
+    """Test 8: after a POST /api/chat that executes a trade, the assistant
+    message from GET /api/chat carries that trade with outcome=="executed"
+    and the same price the POST response reported."""
+    monkeypatch.setenv("LLM_MOCK", "true")
+    _seed_price(client, "CSCO", 100.0)
+
+    post_resp = client.post("/api/chat", json={"message": "buy 5 CSCO"})
+    post_price = post_resp.json()["trades"][0]["price"]
+
+    history_resp = client.get("/api/chat")
+    assistant_message = history_resp.json()["messages"][1]
+
+    assert assistant_message["trades"][0]["outcome"] == "executed"
+    assert assistant_message["trades"][0]["price"] == post_price
+
+
+def test_get_chat_degrades_unparseable_actions_to_empty_lists(client: TestClient) -> None:
+    """Test 9: a row whose actions column holds unparseable text yields
+    empty trades/watchlist_changes for that message, and GET /api/chat
+    still returns 200."""
+    client.portal.call(
+        chat_messages_module.insert_message, "assistant", "some reply", "not json"
+    )
+
+    resp = client.get("/api/chat")
+
+    assert resp.status_code == 200
+    messages = resp.json()["messages"]
+    assert len(messages) == 1
+    assert messages[0]["trades"] == []
+    assert messages[0]["watchlist_changes"] == []
+
+
+def test_get_chat_never_returns_orphan_user_message(client: TestClient, monkeypatch) -> None:
+    """Test 10: GET /api/chat returns no user message without its assistant
+    reply — after a POST, the count of returned messages is even."""
+    monkeypatch.setenv("LLM_MOCK", "true")
+
+    client.post("/api/chat", json={"message": "how am I doing?"})
+
+    resp = client.get("/api/chat")
+    messages = resp.json()["messages"]
+
+    assert len(messages) % 2 == 0
