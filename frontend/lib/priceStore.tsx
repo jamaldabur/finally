@@ -16,20 +16,30 @@
  * store is the only place that sees every tick — a later watchlist
  * change-% column needs it (Plan 02-02).
  *
- * Connection status: `onopen` and every `prices` event set `'connected'`.
- * For this slice, `onerror` sets `'reconnecting'` and nothing else — the
- * grace-window promotion to `'disconnected'` (D-06) is Plan 02-03's
- * connection-dot task, not this one.
+ * Connection status (D-06, completed in Plan 02-03): `onopen` and every
+ * `prices` event set `'connected'` and clear any pending grace timer.
+ * `onerror` sets `'reconnecting'` — the browser is already retrying on its
+ * own, which is exactly why native `EventSource` was chosen (PLAN.md §6) —
+ * then clears any existing grace timer and arms exactly one new 5-second
+ * timer that sets `'disconnected'` only if the connection is still not
+ * open when it fires. Clearing before arming keeps at most one timer
+ * pending at a time, so a burst of interleaved error/recovery events can
+ * never leave the dot red while the stream is actually live.
  */
 
 import {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import type { PriceTick, PricesEvent } from "./types";
+
+// Grace window before a lost connection is reported as fully disconnected
+// (D-06 / A2 in 02-RESEARCH.md — a starting point, not a locked value).
+const DISCONNECT_GRACE_MS = 5000;
 
 export type ConnectionStatus = "connected" | "reconnecting" | "disconnected";
 
@@ -47,10 +57,18 @@ export function PriceStoreProvider({ children }: { children: ReactNode }) {
     new Map(),
   );
   const [status, setStatus] = useState<ConnectionStatus>("reconnecting");
+  const graceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
     const es = new EventSource(`${base}/api/stream/prices`);
+
+    const clearGraceTimer = () => {
+      if (graceTimer.current) {
+        clearTimeout(graceTimer.current);
+        graceTimer.current = null;
+      }
+    };
 
     es.addEventListener("prices", (event: MessageEvent<string>) => {
       const payload = JSON.parse(event.data) as PricesEvent;
@@ -71,12 +89,28 @@ export function PriceStoreProvider({ children }: { children: ReactNode }) {
         return changed ? next : prev;
       });
       setStatus("connected");
+      clearGraceTimer();
     });
 
-    es.onopen = () => setStatus("connected");
-    es.onerror = () => setStatus("reconnecting");
+    es.onopen = () => {
+      setStatus("connected");
+      clearGraceTimer();
+    };
 
-    return () => es.close();
+    es.onerror = () => {
+      setStatus("reconnecting");
+      clearGraceTimer();
+      graceTimer.current = setTimeout(() => {
+        if (es.readyState !== EventSource.OPEN) {
+          setStatus("disconnected");
+        }
+      }, DISCONNECT_GRACE_MS);
+    };
+
+    return () => {
+      clearGraceTimer();
+      es.close();
+    };
   }, []);
 
   return (
