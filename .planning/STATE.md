@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Core Trading UI
-status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-09-17T16:50:10.848Z"
+status: verifying
+stopped_at: Completed 02-03-PLAN.md
+last_updated: "2026-09-17T17:02:35.516Z"
 last_activity: 2026-09-17
 last_activity_desc: Phase 02 execution started
-state_head: 7aa7b49b65e119c86449131d53c3caf811313a03
+state_head: 25e57d39794038d8236815e8681b82dcaa760ddf
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
   percent: 17
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-09-16)
 
 Phase: 02 (Core Trading UI) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-09-17 — Phase 02 execution started
 
 Progress: [██░░░░░░░░] 17%
@@ -64,6 +64,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 01 P01-04 | 15min | 3 tasks | 9 files |
 | Phase 02 P01 | 19min | 3 tasks | 5 files |
 | Phase 02 P02 | 24min | 2 tasks | 5 files |
+| Phase 02 P03 | 11min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,9 @@ Recent decisions affecting current work:
 - [Phase 02]: [Phase 02-01]: portfolioStore.tsx's mount-time fetch is a self-contained async IIFE effect, not a call to the exported refresh() callback, to satisfy eslint-plugin-react-hooks 7.1.1's set-state-in-effect rule
 - [Phase 02]: [Phase 02-02]: PriceCell flash trigger compares against a per-cell useRef of its own last rendered price, never the SSE tick's previous_price field — PriceCache.update() keeps the old previous_price on an unchanged heartbeat
 - [Phase 02]: [Phase 02-02]: WatchlistRow's change% is session-relative (since page open, from priceStore's firstPrices), labelled "Chg. since open" since the backend contract carries no daily open/previous close
+- [Phase 02]: [Phase 02-03]: Numeric-cell monospace font applied via one global .tabular-nums { font-family } CSS rule rather than threading a second utility class into WatchlistRow/PriceCell (outside this plan's file scope) — reaches every existing tabular-nums element site-wide
+- [Phase 02]: [Phase 02-03]: portfolioStore's 5s refresh interval and TradeBar's post-trade refresh share one isRefreshingRef guard, so an in-flight fetch from either source blocks a second overlapping fetch
+- [Phase 02]: [Phase 02-03]: priceStore's D-06 grace-timer uses a single useRef timer handle, always cleared before being re-armed on onopen/prices/onerror, so interleaved error/recovery events can never leave the connection dot stuck red while the stream is live
 
 ### Pending Todos
 
@@ -108,6 +112,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-17T16:50:10.767Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-09-17T17:02:35.429Z
+Stopped at: Completed 02-03-PLAN.md
 Resume file: None

@@ -47,10 +47,10 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 - [ ] **UI-03**: Clicking a ticker in the watchlist shows a larger detailed chart for it in the main chart area
 - [ ] **UI-04**: Portfolio heatmap (treemap) sizes rectangles by position weight and colors/saturates by unrealized P&L%, capped at ±10%
 - [ ] **UI-05**: P&L line chart shows total portfolio value over time, sourced from `portfolio_snapshots`
-- [ ] **UI-06**: Positions table shows ticker, quantity, avg cost, current price, unrealized P&L, % change
+- [x] **UI-06**: Positions table shows ticker, quantity, avg cost, current price, unrealized P&L, % change
 - [x] **UI-07**: Trade bar lets the user submit buy/sell market orders (ticker, quantity, buy button, sell button)
 - [ ] **UI-08**: AI chat panel (collapsible) hydrates history on mount and shows inline trade/watchlist confirmation badges labeled success or error
-- [ ] **UI-09**: Header shows live portfolio total value, a connection status indicator (green/yellow/red dot), and cash balance
+- [x] **UI-09**: Header shows live portfolio total value, a connection status indicator (green/yellow/red dot), and cash balance
 - [x] **UI-10**: UI follows the dark trading-terminal visual design (color scheme, price flash animation) specified in PLAN.md §2
 
 ### Deployment (DEPLOY)
@@ -115,9 +115,9 @@ Which phases cover which requirements. Populated during roadmap creation.
 | WLST-02 | Phase 1 | Complete |
 | WLST-03 | Phase 1 | Complete |
 | UI-01 | Phase 2 | Complete |
-| UI-06 | Phase 2 | Pending |
+| UI-06 | Phase 2 | Complete |
 | UI-07 | Phase 2 | Complete |
-| UI-09 | Phase 2 | Pending |
+| UI-09 | Phase 2 | Complete |
 | UI-10 | Phase 2 | Complete |
 | CHAT-01 | Phase 3 | Pending |
 | CHAT-02 | Phase 3 | Pending |
