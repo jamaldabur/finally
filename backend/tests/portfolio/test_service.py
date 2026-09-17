@@ -286,6 +286,94 @@ async def test_portfolio_view_handles_loss() -> None:
 
 
 @pytest.mark.asyncio
+async def test_execute_trade_rejects_invalid_quantity_and_side() -> None:
+    """01-VALIDATION.md T-03-01 / STATE.md blocker: execute_trade() must
+    reject a bad quantity or side for every caller (not just the HTTP
+    route's Pydantic layer), since Phase 3's chat flow calls it directly.
+    Tests 1-4 from 03-01-PLAN.md Task 3; test 5 (no new trades rows) is
+    folded into each case via the cash-balance/positions assertions plus an
+    explicit trades-count check at the end."""
+    await _init_tables()
+    cache = PriceCache()
+    market_source = SimulatorMarketDataSource()
+    lock = asyncio.Lock()
+    await cache.update("CSCO", 100.0)
+
+    starting_cash = await users_profile_module.get_cash_balance()
+
+    # Test 1: negative quantity, valid side.
+    result = await execute_trade(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        ticker="CSCO",
+        side="buy",
+        quantity=-100,
+    )
+    assert result.status == "error"
+    assert await users_profile_module.get_cash_balance() == starting_cash
+
+    # Test 2: zero quantity.
+    result = await execute_trade(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        ticker="CSCO",
+        side="buy",
+        quantity=0,
+    )
+    assert result.status == "error"
+    assert await users_profile_module.get_cash_balance() == starting_cash
+
+    # Test 3: non-finite quantity (NaN and infinity).
+    result = await execute_trade(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        ticker="CSCO",
+        side="buy",
+        quantity=float("nan"),
+    )
+    assert result.status == "error"
+    result = await execute_trade(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        ticker="CSCO",
+        side="buy",
+        quantity=float("inf"),
+    )
+    assert result.status == "error"
+    assert await users_profile_module.get_cash_balance() == starting_cash
+
+    # Test 4: invalid side ("hold") and case-mismatched side ("BUY") must
+    # both be rejected — neither may silently fall into the sell branch.
+    result = await execute_trade(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        ticker="CSCO",
+        side="hold",
+        quantity=1,
+    )
+    assert result.status == "error"
+    result = await execute_trade(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        ticker="CSCO",
+        side="BUY",
+        quantity=1,
+    )
+    assert result.status == "error"
+    assert await users_profile_module.get_cash_balance() == starting_cash
+
+    # Test 5: none of the rejected calls above wrote a trades row.
+    all_trades = await trades_module.get_trades()
+    assert all_trades == []
+
+
+@pytest.mark.asyncio
 async def test_portfolio_view_marks_unpriced_position_to_cost() -> None:
     """A position whose ticker has no entry in a fresh PriceCache is marked
     to cost rather than crashing the read or dropping out of total_value
