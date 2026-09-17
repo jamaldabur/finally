@@ -11,6 +11,7 @@ TradeResult into an HTTP response.
 from __future__ import annotations
 
 import asyncio
+import math
 from dataclasses import dataclass
 from typing import Literal
 
@@ -146,6 +147,35 @@ async def execute_trade(
     directly from the market source — PriceCache is the sole fill-price
     authority, since it's the same cache the SSE stream reads (the price
     the user's screen is showing)."""
+    # This guard must live here, not only at the HTTP layer: Phase 3's chat
+    # flow (app/llm/actions.py) calls execute_trade() directly, bypassing
+    # the route's Pydantic Field(gt=0) / Literal["buy", "sell"] layer. Left
+    # unguarded, a negative buy quantity both clears the cash-sufficiency
+    # check below and increases the balance on assignment, and the
+    # if side == "buy" / else dispatch treats any non-"buy" string as a
+    # sell (01-REVIEW.md WR-01/WR-02, STATE.md blocker).
+    if (
+        not isinstance(quantity, (int, float))
+        or isinstance(quantity, bool)
+        or not math.isfinite(quantity)
+        or quantity <= 0
+    ):
+        return TradeResult(
+            status="error",
+            reason=f"Invalid quantity: {quantity!r}",
+            trade=None,
+            cash_balance=None,
+            position=None,
+        )
+    if side not in ("buy", "sell"):
+        return TradeResult(
+            status="error",
+            reason=f"Invalid side: {side!r}",
+            trade=None,
+            cash_balance=None,
+            position=None,
+        )
+
     ticker = ticker.strip().upper()
 
     if not await market_source.is_valid_ticker(ticker):
