@@ -42,7 +42,7 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 
 ### Frontend (UI)
 
-- [ ] **UI-01**: Watchlist panel shows live-updating prices via SSE, flashing green/red on price change
+- [x] **UI-01**: Watchlist panel shows live-updating prices via SSE, flashing green/red on price change
 - [ ] **UI-02**: Each watchlist ticker shows a sparkline mini-chart accumulated from the SSE stream since page load
 - [ ] **UI-03**: Clicking a ticker in the watchlist shows a larger detailed chart for it in the main chart area
 - [ ] **UI-04**: Portfolio heatmap (treemap) sizes rectangles by position weight and colors/saturates by unrealized P&L%, capped at ±10%
@@ -114,7 +114,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | WLST-01 | Phase 1 | Complete |
 | WLST-02 | Phase 1 | Complete |
 | WLST-03 | Phase 1 | Complete |
-| UI-01 | Phase 2 | Pending |
+| UI-01 | Phase 2 | Complete |
 | UI-06 | Phase 2 | Pending |
 | UI-07 | Phase 2 | Complete |
 | UI-09 | Phase 2 | Pending |

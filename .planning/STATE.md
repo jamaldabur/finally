@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Core Trading UI
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-09-17T09:08:04.270Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-09-17T16:50:10.848Z"
 last_activity: 2026-09-17
 last_activity_desc: Phase 02 execution started
-state_head: ac918b51b370e4b770c232f29253b0d87ed0d167
+state_head: 7aa7b49b65e119c86449131d53c3caf811313a03
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
   percent: 17
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-09-16)
 ## Current Position
 
 Phase: 02 (Core Trading UI) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-09-17 — Phase 02 execution started
 
@@ -63,6 +63,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 01 P01-03 | 11min | 3 tasks | 10 files |
 | Phase 01 P01-04 | 15min | 3 tasks | 9 files |
 | Phase 02 P01 | 19min | 3 tasks | 5 files |
+| Phase 02 P02 | 24min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -83,6 +84,8 @@ Recent decisions affecting current work:
 - [Phase 01]: [Phase 01]: Rounded compute_portfolio_view()'s derived monetary/percentage values to cent precision to match app/market/simulator.py's round-once convention and avoid float-precision leaking into the locked API contract
 - [Phase 02]: [Phase 02-01]: typescript pinned to 6.0.3 (not the plan's 7.0.2) because eslint-config-next@16.3.5's bundled typescript-eslint@8.70.0 requires typescript <6.1.0
 - [Phase 02]: [Phase 02-01]: portfolioStore.tsx's mount-time fetch is a self-contained async IIFE effect, not a call to the exported refresh() callback, to satisfy eslint-plugin-react-hooks 7.1.1's set-state-in-effect rule
+- [Phase 02]: [Phase 02-02]: PriceCell flash trigger compares against a per-cell useRef of its own last rendered price, never the SSE tick's previous_price field — PriceCache.update() keeps the old previous_price on an unchanged heartbeat
+- [Phase 02]: [Phase 02-02]: WatchlistRow's change% is session-relative (since page open, from priceStore's firstPrices), labelled "Chg. since open" since the backend contract carries no daily open/previous close
 
 ### Pending Todos
 
@@ -105,6 +108,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-17T09:08:04.187Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-09-17T16:50:10.767Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None
