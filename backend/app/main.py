@@ -9,7 +9,9 @@ the process. `create_app()` is a factory (rather than a bare module-level
 
 import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -20,8 +22,14 @@ from .market.factory import build_market_data_source
 from .market.loop import MASSIVE_POLL_SECONDS, SIMULATOR_TICK_SECONDS, run_update_loop
 from .market.massive import MassiveMarketDataSource
 from .portfolio.snapshots import run_portfolio_snapshot_loop
-from .routes import health, portfolio, stream
+from .routes import chat, health, portfolio, stream
 from .routes import watchlist as watchlist_routes
+
+# backend/app/main.py -> parents[0]=app, [1]=backend, [2]=repo root — loads
+# the project-root .env (PLAN.md §5) so OPENROUTER_API_KEY reaches LiteLLM.
+# No override=True: an already-exported variable or a test's
+# monkeypatch.setenv must both win over the file (03-01-PLAN.md Task 2).
+load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
 
 
 @asynccontextmanager
@@ -94,6 +102,7 @@ def create_app() -> FastAPI:
     app.include_router(stream.router)
     app.include_router(portfolio.router)
     app.include_router(watchlist_routes.router)
+    app.include_router(chat.router)
     return app
 
 
