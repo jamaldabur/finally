@@ -32,7 +32,7 @@ A user can watch live prices, trade a simulated portfolio, and have an AI copilo
 
 ### Active
 
-- [ ] LLM chat integration via LiteLLM → OpenRouter (`openrouter/openai/gpt-oss-120b`), structured JSON output (message + trades + watchlist_changes)
+- [ ] LLM chat integration via LiteLLM → OpenRouter (`openrouter/openrouter/free`), structured JSON output (message + trades + watchlist_changes)
 - [ ] Chat auto-executes trades/watchlist changes through the same validation path as manual actions, annotates each with executed/error outcome
 - [ ] `execute_trade()` gains its own input validation (quantity > 0, side is exactly "buy"/"sell") instead of relying solely on the HTTP route's Pydantic layer — emerged from Phase 1 code review (01-REVIEW.md WR-01/WR-02), still unaddressed after Phase 2: a direct non-HTTP call with a negative/zero quantity can mint free cash or raise an uncaught `ZeroDivisionError` inside the portfolio lock, and Phase 3's chat flow is specified to call `execute_trade()` directly with LLM-sourced args, bypassing the route-level guard the Phase 2 frontend still relies on
 - [ ] `GET /api/chat` (history) and `POST /api/chat` (send message, get full response) endpoints
@@ -70,7 +70,7 @@ A user can watch live prices, trade a simulated portfolio, and have an AI copilo
 
 - **Tech stack**: FastAPI (Python, uv) backend, Next.js (TypeScript, static export) frontend, SQLite, SSE, LiteLLM → OpenRouter — all fixed by PLAN.md, not open decisions for this milestone
 - **Deployment**: Single Docker container, single port (8000), no docker-compose required for production — per PLAN.md §3/§11
-- **LLM model**: Must use `openrouter/openai/gpt-oss-120b` via the `litellm-stream` skill with structured outputs, per PLAN.md §9 and root CLAUDE.md
+- **LLM model**: Must use `openrouter/openrouter/free` via the `litellm-stream` skill with structured outputs, per PLAN.md §9 and root CLAUDE.md
 - **Scope simplification**: Market orders only, no auth, no confirmation dialogs — deliberate choices in PLAN.md to keep portfolio math and demo flow simple
 - **Course/demo context**: This is a capstone project meant to demonstrate agentic AI coding; polish and "impressive fluid demo experience" (PLAN.md §9) matter alongside correctness
 

@@ -12,7 +12,7 @@ FinAlly is a visually stunning, AI-powered trading workstation — a browser-bas
 
 - **Tech stack**: FastAPI (Python, uv) backend, Next.js (TypeScript, static export) frontend, SQLite, SSE, LiteLLM → OpenRouter — all fixed by PLAN.md, not open decisions for this milestone
 - **Deployment**: Single Docker container, single port (8000), no docker-compose required for production — per PLAN.md §3/§11
-- **LLM model**: Must use `openrouter/openai/gpt-oss-120b` via the `litellm-stream` skill with structured outputs, per PLAN.md §9 and root CLAUDE.md
+- **LLM model**: Must use `openrouter/openrouter/free` via the `litellm-stream` skill with structured outputs, per PLAN.md §9 and root CLAUDE.md
 - **Scope simplification**: Market orders only, no auth, no confirmation dialogs — deliberate choices in PLAN.md to keep portfolio math and demo flow simple
 - **Course/demo context**: This is a capstone project meant to demonstrate agentic AI coding; polish and "impressive fluid demo experience" (PLAN.md §9) matter alongside correctness
 
@@ -107,7 +107,7 @@ FinAlly is a visually stunning, AI-powered trading workstation — a browser-bas
 - Massive REST API (`api.massive.com/v2/snapshot/...`) — Optional, polled via `httpx`
 - No WebSocket or dedicated SDK — plain HTTP REST
 - LiteLLM (planned dependency) — Abstraction layer over LLM providers
-- OpenRouter API — LLM provider (model: `openrouter/openai/gpt-oss-120b`)
+- OpenRouter API — LLM provider (model: `openrouter/openrouter/free`)
 - No real code yet; infrastructure scaffolded only
 - Authentication (single-user hardcoded)
 - Caching (in-memory only)

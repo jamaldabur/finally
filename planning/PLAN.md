@@ -283,7 +283,7 @@ All tables include a `user_id` column defaulting to `"default"`. This is hardcod
 
 ## 9. LLM Integration
 
-When writing code to make calls to LLMs, use litellm-stream skill to use LiteLLM via OpenRouter to the `openrouter/openai/gpt-oss-120b` model. Structured Outputs should be used to interpret the results.
+When writing code to make calls to LLMs, use litellm-stream skill to use LiteLLM via OpenRouter to the `openrouter/openrouter/free` model. Structured Outputs should be used to interpret the results.
 
 There is an OPENROUTER_API_KEY in the .env file in the project root.
 

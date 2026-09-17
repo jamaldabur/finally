@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 litellm.enable_json_schema_validation = True
 
-MODEL = "openrouter/openai/gpt-oss-120b"
+MODEL = "openrouter/openrouter/free"
 
 # PLAN.md §9 "System Prompt Guidance". Two hard constraints beyond the
 # feature list: the assistant describes what it is *requesting*, never
