@@ -16,8 +16,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app.llm.client as llm_client_module
+import app.routes.chat as chat_route_module
 from app.db import chat_messages as chat_messages_module
 from app.main import create_app
+from app.portfolio.service import PortfolioView
 
 
 @pytest.fixture
@@ -192,3 +194,65 @@ def test_get_chat_never_returns_orphan_user_message(client: TestClient, monkeypa
     messages = resp.json()["messages"]
 
     assert len(messages) % 2 == 0
+
+
+def test_build_messages_caps_history_at_prompt_history_limit() -> None:
+    """Test 9: build_messages() with a 30-item history includes at most
+    PROMPT_HISTORY_LIMIT of the most recent entries, plus the system and
+    new-user messages."""
+    from app.llm.client import PROMPT_HISTORY_LIMIT, build_messages
+
+    portfolio_view = PortfolioView(
+        cash_balance=10000.0,
+        positions=[],
+        positions_value=0.0,
+        total_value=10000.0,
+        total_unrealized_pnl=0.0,
+    )
+    history = [
+        {"role": "user" if i % 2 == 0 else "assistant", "content": f"message {i}"}
+        for i in range(30)
+    ]
+
+    messages = build_messages(
+        portfolio_view=portfolio_view,
+        watchlist_entries=[],
+        history=history,
+        user_message="new message",
+    )
+
+    # 2 system messages (SYSTEM_PROMPT + portfolio context) + capped history
+    # + 1 new user message.
+    assert len(messages) == 2 + PROMPT_HISTORY_LIMIT + 1
+    history_portion = messages[2:-1]
+    assert len(history_portion) == PROMPT_HISTORY_LIMIT
+    assert history_portion[0]["content"] == "message 10"
+    assert history_portion[-1]["content"] == "message 29"
+
+
+def test_chat_history_reaches_second_prompt(client: TestClient, monkeypatch) -> None:
+    """Test 10: after two POST /api/chat calls, the second call's prompt
+    context contains the first exchange's text — history actually reaches
+    the model."""
+    monkeypatch.setenv("LLM_MOCK", "true")
+
+    captured_history: list[list[dict]] = []
+    original_get_chat_response = chat_route_module.get_chat_response
+
+    async def _capture(*, portfolio_view, watchlist_entries, history, user_message):
+        captured_history.append(history)
+        return await original_get_chat_response(
+            portfolio_view=portfolio_view,
+            watchlist_entries=watchlist_entries,
+            history=history,
+            user_message=user_message,
+        )
+
+    monkeypatch.setattr(chat_route_module, "get_chat_response", _capture)
+
+    client.post("/api/chat", json={"message": "first message unique text"})
+    client.post("/api/chat", json={"message": "second message"})
+
+    assert len(captured_history) == 2
+    second_call_contents = [m["content"] for m in captured_history[1]]
+    assert any("first message unique text" in c for c in second_call_contents)
