@@ -96,7 +96,7 @@ Plans:
   4. The chat panel hydrates prior conversation history from `GET /api/chat` on mount, surviving a page refresh
   5. With `LLM_MOCK=true`, chat returns deterministic mock responses without calling OpenRouter
 
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 **UI hint**: yes
 
 Plans:
@@ -107,7 +107,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 03-02-PLAN.md — Chat history persistence, `GET /api/chat` hydration, and a bounded prompt context (wave 2)
-- [ ] 03-03-PLAN.md — Chat panel in the browser: wire contract, store, third column, input and message list (wave 2)
+- [x] 03-03-PLAN.md — Chat panel in the browser: wire contract, store, third column, input and message list (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -169,7 +169,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|-----------------|--------|-----------|
 | 1. Backend Trading Engine | 4/4 | Complete    | 2026-09-16 |
 | 2. Core Trading UI | 3/3 | Complete    | 2026-09-17 |
-| 3. AI Chat Copilot | 2/4 | In Progress|  |
+| 3. AI Chat Copilot | 3/4 | In Progress|  |
 | 4. Portfolio Visualization | TBD | Not started | - |
 | 5. Docker Packaging & Deployment | TBD | Not started | - |
 | 6. Test Coverage | TBD | Not started | - |

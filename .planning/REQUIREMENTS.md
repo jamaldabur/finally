@@ -33,11 +33,11 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 
 ### AI Chat (CHAT)
 
-- [ ] **CHAT-01**: User can send a chat message and receive a complete structured JSON response (message + actions) via `POST /api/chat`
+- [x] **CHAT-01**: User can send a chat message and receive a complete structured JSON response (message + actions) via `POST /api/chat`
 - [x] **CHAT-02**: LLM responses are requested and parsed as structured output (`message`, `trades[]`, `watchlist_changes[]`) via LiteLLM → OpenRouter (`openrouter/openai/gpt-oss-120b`)
 - [x] **CHAT-03**: Trades/watchlist changes the LLM specifies auto-execute through the same validation path as manual trade-bar/watchlist actions — no confirmation dialog
 - [ ] **CHAT-04**: Each LLM-requested action is annotated with an `executed`/`error` outcome and returned to the frontend separately from the chat message text
-- [ ] **CHAT-05**: User's recent conversation history hydrates on page load via `GET /api/chat`
+- [x] **CHAT-05**: User's recent conversation history hydrates on page load via `GET /api/chat`
 - [x] **CHAT-06**: System supports `LLM_MOCK=true` for deterministic mock chat responses (dev/testing without an API key)
 
 ### Frontend (UI)
@@ -119,11 +119,11 @@ Which phases cover which requirements. Populated during roadmap creation.
 | UI-07 | Phase 2 | Complete |
 | UI-09 | Phase 2 | Complete |
 | UI-10 | Phase 2 | Complete |
-| CHAT-01 | Phase 3 | Pending |
+| CHAT-01 | Phase 3 | Complete |
 | CHAT-02 | Phase 3 | Complete |
 | CHAT-03 | Phase 3 | Complete |
 | CHAT-04 | Phase 3 | Pending |
-| CHAT-05 | Phase 3 | Pending |
+| CHAT-05 | Phase 3 | Complete |
 | CHAT-06 | Phase 3 | Complete |
 | UI-08 | Phase 3 | Pending |
 | UI-02 | Phase 4 | Pending |
