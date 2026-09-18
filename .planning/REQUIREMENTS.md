@@ -38,7 +38,7 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 - [x] **CHAT-03**: Trades/watchlist changes the LLM specifies auto-execute through the same validation path as manual trade-bar/watchlist actions — no confirmation dialog
 - [ ] **CHAT-04**: Each LLM-requested action is annotated with an `executed`/`error` outcome and returned to the frontend separately from the chat message text
 - [ ] **CHAT-05**: User's recent conversation history hydrates on page load via `GET /api/chat`
-- [ ] **CHAT-06**: System supports `LLM_MOCK=true` for deterministic mock chat responses (dev/testing without an API key)
+- [x] **CHAT-06**: System supports `LLM_MOCK=true` for deterministic mock chat responses (dev/testing without an API key)
 
 ### Frontend (UI)
 
@@ -124,7 +124,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | CHAT-03 | Phase 3 | Complete |
 | CHAT-04 | Phase 3 | Pending |
 | CHAT-05 | Phase 3 | Pending |
-| CHAT-06 | Phase 3 | Pending |
+| CHAT-06 | Phase 3 | Complete |
 | UI-08 | Phase 3 | Pending |
 | UI-02 | Phase 4 | Pending |
 | UI-03 | Phase 4 | Pending |

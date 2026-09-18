@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: AI Chat Copilot
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-09-17T23:46:07.270Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-09-18T00:05:09.656Z"
 last_activity: 2026-09-18
 last_activity_desc: Phase 03 execution started
-state_head: 4005a41523a5ed78bcd52848bd4f58df4352c6cb
+state_head: d99e24f88b42961f2b80085ff751396a54986b7b
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 11
-  completed_plans: 8
+  completed_plans: 9
   percent: 33
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-09-17)
 ## Current Position
 
 Phase: 03 (AI Chat Copilot) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-09-18 — Phase 03 execution started
 
@@ -67,6 +67,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 02 P02 | 24min | 2 tasks | 5 files |
 | Phase 02 P03 | 11min | 3 tasks | 9 files |
 | Phase 03 P01 | 24min | 3 tasks | 15 files |
+| Phase 03 P02 | 35min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -94,6 +95,8 @@ Recent decisions affecting current work:
 - [Phase 02]: [Phase 02-03]: priceStore's D-06 grace-timer uses a single useRef timer handle, always cleared before being re-armed on onopen/prices/onerror, so interleaved error/recovery events can never leave the connection dot stuck red while the stream is live
 - [Phase 03]: [Phase 03-01]: LLM model switched from openrouter/openai/gpt-oss-120b to openrouter/openrouter/free after live verification hit 402 insufficient credits on the original model (user-directed, re-verified end-to-end before continuing)
 - [Phase 03]: [Phase 03-01]: execute_trade() gains a leading quantity/side validation guard (before ticker normalization and is_valid_ticker) closing the Phase 1 WR-01/WR-02 blocker, since the chat flow calls it directly bypassing the HTTP route's Pydantic layer
+- [Phase 03]: [Phase 03-02]: PROMPT_HISTORY_LIMIT=20 and GET /api/chat limit=50 (03-RESEARCH.md A2) — no pruning policy existed in PLAN.md for chat_messages, decided explicitly here
+- [Phase 03]: [Phase 03-02]: chat_messages history ordered by SQLite rowid, not created_at — two rows written inside one request can carry identical ISO timestamps
 
 ### Pending Todos
 
@@ -115,6 +118,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-17T23:46:07.170Z
-Stopped at: Completed 03-01-PLAN.md
+Last session: 2026-09-18T00:05:09.540Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None
