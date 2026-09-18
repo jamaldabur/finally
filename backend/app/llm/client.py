@@ -34,6 +34,14 @@ litellm.enable_json_schema_validation = True
 
 MODEL = "openrouter/openrouter/free"
 
+# PLAN.md §9 step 2 says "recent conversation history" without a number, and
+# 03-RESEARCH.md Pitfall 5 flags the unbounded-growth cost of feeding the
+# whole stored conversation into every prompt. 20 messages is roughly ten
+# turns — enough for continuity without the per-request prompt growing for
+# the length of a demo session. The cap is applied inside build_messages()
+# rather than at the call site so no caller can bypass it.
+PROMPT_HISTORY_LIMIT = 20
+
 # PLAN.md §9 "System Prompt Guidance". Two hard constraints beyond the
 # feature list: the assistant describes what it is *requesting*, never
 # asserts an action already succeeded or failed (outcomes are computed by
@@ -111,7 +119,13 @@ def build_messages(
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "system", "content": "\n".join(context_lines)},
     ]
-    messages.extend(history)
+    # Cap applied here, not at the call site, so no caller can bypass it.
+    # Only role/content are replayed — the actions column is server-computed
+    # outcome data, never conversation content (PLAN.md §9 step 7, T-03-09).
+    capped_history = history[-PROMPT_HISTORY_LIMIT:] if history else history
+    messages.extend(
+        {"role": item["role"], "content": item["content"]} for item in capped_history
+    )
     messages.append({"role": "user", "content": user_message})
     return messages
 

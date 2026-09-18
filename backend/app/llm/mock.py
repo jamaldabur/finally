@@ -6,6 +6,12 @@ single static reply, so Phase 6's E2E "mocked chat trade execution" scenario
 has a real action to assert against (03-RESEARCH.md Pitfall 4 / Assumption
 A1). The `[LLM_MOCK]` prefix on every returned `message` makes mock output
 impossible to mistake for genuine model output.
+
+Determinism contract (locked by tests/llm/test_mock.py): this function takes
+only the message string, uses no clock, no randomness, and no environment
+read, so the same input always produces byte-identical output on every call.
+This is what makes `LLM_MOCK=true` usable for Phase 6's E2E suite — a test
+can assert on the exact response a given input produces.
 """
 
 from __future__ import annotations

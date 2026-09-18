@@ -139,12 +139,15 @@ async def post_chat(body: ChatRequest, request: Request) -> ChatResponse:
             {"ticker": row.ticker, "price": tick.price if tick else None}
         )
 
-    # Plan 03-02 supplies real conversation history from chat_messages; this
-    # plan proves the round trip with an empty history.
+    # Read before persisting the new turn, so the user's own new message
+    # (passed separately as user_message) is never duplicated in history.
+    history_rows = await get_messages()
+    history = [{"role": row.role, "content": row.content} for row in history_rows]
+
     llm_response = await get_chat_response(
         portfolio_view=portfolio_view,
         watchlist_entries=watchlist_context,
-        history=[],
+        history=history,
         user_message=body.message,
     )
 
