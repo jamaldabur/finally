@@ -36,7 +36,7 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 - [x] **CHAT-01**: User can send a chat message and receive a complete structured JSON response (message + actions) via `POST /api/chat`
 - [x] **CHAT-02**: LLM responses are requested and parsed as structured output (`message`, `trades[]`, `watchlist_changes[]`) via LiteLLM → OpenRouter (`openrouter/openai/gpt-oss-120b`)
 - [x] **CHAT-03**: Trades/watchlist changes the LLM specifies auto-execute through the same validation path as manual trade-bar/watchlist actions — no confirmation dialog
-- [ ] **CHAT-04**: Each LLM-requested action is annotated with an `executed`/`error` outcome and returned to the frontend separately from the chat message text
+- [x] **CHAT-04**: Each LLM-requested action is annotated with an `executed`/`error` outcome and returned to the frontend separately from the chat message text
 - [x] **CHAT-05**: User's recent conversation history hydrates on page load via `GET /api/chat`
 - [x] **CHAT-06**: System supports `LLM_MOCK=true` for deterministic mock chat responses (dev/testing without an API key)
 
@@ -49,7 +49,7 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 - [ ] **UI-05**: P&L line chart shows total portfolio value over time, sourced from `portfolio_snapshots`
 - [x] **UI-06**: Positions table shows ticker, quantity, avg cost, current price, unrealized P&L, % change
 - [x] **UI-07**: Trade bar lets the user submit buy/sell market orders (ticker, quantity, buy button, sell button)
-- [ ] **UI-08**: AI chat panel (collapsible) hydrates history on mount and shows inline trade/watchlist confirmation badges labeled success or error
+- [x] **UI-08**: AI chat panel (collapsible) hydrates history on mount and shows inline trade/watchlist confirmation badges labeled success or error
 - [x] **UI-09**: Header shows live portfolio total value, a connection status indicator (green/yellow/red dot), and cash balance
 - [x] **UI-10**: UI follows the dark trading-terminal visual design (color scheme, price flash animation) specified in PLAN.md §2
 
@@ -122,10 +122,10 @@ Which phases cover which requirements. Populated during roadmap creation.
 | CHAT-01 | Phase 3 | Complete |
 | CHAT-02 | Phase 3 | Complete |
 | CHAT-03 | Phase 3 | Complete |
-| CHAT-04 | Phase 3 | Pending |
+| CHAT-04 | Phase 3 | Complete |
 | CHAT-05 | Phase 3 | Complete |
 | CHAT-06 | Phase 3 | Complete |
-| UI-08 | Phase 3 | Pending |
+| UI-08 | Phase 3 | Complete |
 | UI-02 | Phase 4 | Pending |
 | UI-03 | Phase 4 | Pending |
 | UI-04 | Phase 4 | Pending |
