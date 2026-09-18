@@ -12,8 +12,16 @@
  * badge per `trades[]` item followed by one per `watchlist_changes[]` item,
  * in exactly the order the backend returned them. A message with no actions
  * renders no badge-stack element at all.
+ *
+ * Auto-scroll: pinned-to-bottom state is derived from the scroll container's
+ * own scroll position (`scrollHeight - scrollTop - clientHeight <= 40`), not
+ * from any prop. While pinned, new messages/sending-state changes scroll the
+ * container to the bottom automatically; once the user scrolls up, new
+ * activity instead surfaces the "New messages ↓" pill rather than yanking
+ * their view back down.
  */
 
+import { useEffect, useRef, useState } from "react";
 import { ActionBadge } from "./ActionBadge";
 import type { ChatMessage } from "@/lib/types";
 
@@ -23,9 +31,71 @@ type ChatMessageListProps = {
 };
 
 export function ChatMessageList({ messages, isSending }: ChatMessageListProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [pinned, setPinned] = useState(true);
+  const [hasNewActivity, setHasNewActivity] = useState(false);
+  // Previous (message count, sending-flag) pair, used only to detect "new
+  // activity arrived" during render — React's "adjusting state when a prop
+  // changes" pattern (calling setState conditionally during render, guarded
+  // so it only fires once per change) — rather than a useEffect whose body
+  // would just call setState synchronously
+  // (react-hooks/set-state-in-effect).
+  const [prevActivityKey, setPrevActivityKey] = useState({
+    length: messages.length,
+    isSending,
+  });
+
+  const activityChanged =
+    prevActivityKey.length !== messages.length ||
+    prevActivityKey.isSending !== isSending;
+
+  if (activityChanged) {
+    setPrevActivityKey({ length: messages.length, isSending });
+    if (!pinned) {
+      setHasNewActivity(true);
+    }
+  }
+
+  // Once the user is back at the bottom, clear the pill — same
+  // during-render derived-state pattern as above.
+  if (pinned && hasNewActivity) {
+    setHasNewActivity(false);
+  }
+
+  function scrollToBottom() {
+    const el = containerRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function handleScroll() {
+    const el = containerRef.current;
+    if (!el) return;
+    setPinned(el.scrollHeight - el.scrollTop - el.clientHeight <= 40);
+  }
+
+  // Pure DOM side effect (no setState call) — scroll to the bottom
+  // whenever pinned and new content arrives.
+  useEffect(() => {
+    if (pinned) {
+      scrollToBottom();
+    }
+  }, [messages.length, isSending, pinned]);
+
+  function handlePillClick() {
+    scrollToBottom();
+    setPinned(true);
+    setHasNewActivity(false);
+  }
+
   return (
-    <div className="flex-1 overflow-y-auto flex flex-col gap-3 p-4">
-      {messages.map((message) => {
+    <div className="relative flex-1 min-h-0">
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        className="h-full overflow-y-auto flex flex-col gap-3 p-4"
+      >
+        {messages.map((message) => {
         if (message.role === "user") {
           return (
             <div
@@ -84,6 +154,16 @@ export function ChatMessageList({ messages, isSending }: ChatMessageListProps) {
             aria-hidden="true"
           />
         </div>
+      )}
+      </div>
+      {hasNewActivity && (
+        <button
+          type="button"
+          onClick={handlePillClick}
+          className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-terminal-border bg-terminal-panel px-3 py-1 text-xs text-terminal-text"
+        >
+          New messages ↓
+        </button>
       )}
     </div>
   );

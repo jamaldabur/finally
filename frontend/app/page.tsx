@@ -8,12 +8,13 @@ import { ChatPanel } from "@/components/chat/ChatPanel";
 
 // D-08 three-column shell: a full-width header band pinned at the top, a
 // left rail (watchlist above the trade bar), a center/main column holding
-// the positions table, and a right rail holding the AI chat panel (Plan
-// 03-03) at the same w-80 width as the left rail, per 03-UI-SPEC.md's dock
-// placement. Plan 02-01's single AAPL tracer readout was replaced by the
-// full WatchlistPanel (Plan 02-02); the header's own portfolio-total
-// readout is now Header.tsx's live-recomputed total value (Plan 02-03,
-// D-05).
+// the positions table, and a right rail holding the AI chat panel. The
+// chat panel owns its own width (Plan 03-04) — full-size expanded, a
+// narrow collapsed rail — so it renders here as a bare flex child with no
+// wrapper div, unlike the left rail which has only one width. Plan
+// 02-01's single AAPL tracer readout was replaced by the full
+// WatchlistPanel (Plan 02-02); the header's own portfolio-total readout is
+// now Header.tsx's live-recomputed total value (Plan 02-03, D-05).
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-terminal-bg text-terminal-text">
@@ -29,9 +30,7 @@ export default function Home() {
           <PositionsTable />
         </main>
 
-        <div className="w-80 flex-shrink-0">
-          <ChatPanel />
-        </div>
+        <ChatPanel />
       </div>
     </div>
   );
