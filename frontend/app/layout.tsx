@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PriceStoreProvider } from "@/lib/priceStore";
 import { PortfolioProvider } from "@/lib/portfolioStore";
+import { ChatProvider } from "@/lib/chatStore";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,10 +31,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           live prices from this provider instead of opening its own.
           PortfolioProvider nests inside it and is the only way portfolio
           state (cash, positions, P&L) ever changes — via its refresh(),
-          never client-derived (D-04). */}
+          never client-derived (D-04). ChatProvider nests inside
+          PortfolioProvider — load-bearing, not incidental: chatStore calls
+          usePortfolio().refresh() after an assistant-executed trade, so it
+          must render below that provider or the hook throws. */}
       <body className="min-h-full flex flex-col bg-terminal-bg text-terminal-text">
         <PriceStoreProvider>
-          <PortfolioProvider>{children}</PortfolioProvider>
+          <PortfolioProvider>
+            <ChatProvider>{children}</ChatProvider>
+          </PortfolioProvider>
         </PriceStoreProvider>
       </body>
     </html>

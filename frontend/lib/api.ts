@@ -5,6 +5,9 @@
  */
 
 import type {
+  ChatMessage,
+  ChatRequest,
+  ChatResponse,
   PortfolioResponse,
   TradeRequest,
   TradeResponse,
@@ -48,6 +51,42 @@ export async function postTrade(body: TradeRequest): Promise<TradeResponse> {
     // The backend's own rejection text (e.g. "Insufficient cash: ...") is
     // the message the user must see (D-03) — never a generic substitute.
     // Fall back to "HTTP {status}" only when the body isn't JSON at all.
+    const parsed: { detail?: ApiErrorDetail } = await res
+      .json()
+      .catch(() => ({ detail: undefined }));
+    const message = Array.isArray(parsed.detail)
+      ? parsed.detail.map((e) => e.msg).join("; ")
+      : (parsed.detail ?? `HTTP ${res.status}`);
+    throw new Error(message);
+  }
+  return res.json();
+}
+
+export async function fetchChatHistory(): Promise<{
+  messages: ChatMessage[];
+}> {
+  const res = await fetch(`${BASE}/api/chat`);
+  if (!res.ok) {
+    throw new Error(`GET /api/chat failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+// Per CHAT-04, POST /api/chat returns 200 with per-action outcome/reason
+// even when a proposed trade or watchlist change is rejected — a proposed
+// action failing is not a request failure. So `!res.ok` here means a
+// transport or request-validation failure only (e.g. a blank message);
+// action-level errors are read from the 200 body's trades[]/
+// watchlist_changes[] `reason` fields, never from this error path.
+export async function postChatMessage(
+  body: ChatRequest,
+): Promise<ChatResponse> {
+  const res = await fetch(`${BASE}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
     const parsed: { detail?: ApiErrorDetail } = await res
       .json()
       .catch(() => ({ detail: undefined }));
