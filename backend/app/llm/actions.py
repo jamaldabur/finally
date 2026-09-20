@@ -156,16 +156,19 @@ async def execute_llm_actions(
             continue
 
         if action == "add":
-            await add_watchlist_ticker(ticker)
+            changed = await add_watchlist_ticker(ticker)
         else:
-            await remove_watchlist_ticker(ticker)
+            changed = await remove_watchlist_ticker(ticker)
 
         annotated_watchlist_changes.append(
             AnnotatedWatchlistChange(
                 ticker=ticker,
                 action=action,
-                outcome="executed",
-                reason=None,
+                outcome="executed" if changed else "error",
+                reason=None if changed else (
+                    f"{ticker} is already on the watchlist" if action == "add"
+                    else f"{ticker} is not on the watchlist"
+                ),
             )
         )
 

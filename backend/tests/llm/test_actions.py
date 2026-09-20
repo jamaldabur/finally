@@ -17,8 +17,9 @@ from app.db import portfolio_snapshots as portfolio_snapshots_module
 from app.db import positions as positions_module
 from app.db import trades as trades_module
 from app.db import users_profile as users_profile_module
+from app.db import watchlist as watchlist_module
 from app.llm.actions import execute_llm_actions
-from app.llm.schema import ChatResponseSchema, LlmTradeItem
+from app.llm.schema import ChatResponseSchema, LlmTradeItem, LlmWatchlistChange
 from app.market.cache import PriceCache
 from app.market.simulator import SimulatorMarketDataSource
 
@@ -28,6 +29,7 @@ async def _init_tables() -> None:
     await positions_module.init_db()
     await trades_module.init_db()
     await portfolio_snapshots_module.init_db()
+    await watchlist_module.init_db()
 
 
 @pytest.mark.asyncio
@@ -96,3 +98,189 @@ async def test_execute_llm_actions_does_not_collapse_duplicate_items() -> None:
 
     cash = await users_profile_module.get_cash_balance()
     assert cash == 9000.0
+
+
+@pytest.mark.asyncio
+async def test_execute_llm_actions_watchlist_add_and_remove_happy_path() -> None:
+    """Adding a ticker not yet on the watchlist and removing one that is
+    both report outcome == "executed", and the watchlist table reflects the
+    changes (CR-01 / WR-03 happy-path coverage)."""
+    await _init_tables()
+    cache = PriceCache()
+    market_source = SimulatorMarketDataSource()
+    lock = asyncio.Lock()
+
+    response = ChatResponseSchema(
+        message="ok",
+        watchlist_changes=[
+            LlmWatchlistChange(ticker="PYPL", action="add"),
+            LlmWatchlistChange(ticker="AAPL", action="remove"),
+        ],
+    )
+
+    result = await execute_llm_actions(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        response=response,
+    )
+
+    assert len(result.watchlist_changes) == 2
+    assert result.watchlist_changes[0].outcome == "executed"
+    assert result.watchlist_changes[0].reason is None
+    assert result.watchlist_changes[1].outcome == "executed"
+    assert result.watchlist_changes[1].reason is None
+
+    tickers = await watchlist_module.get_watchlist_tickers()
+    assert "PYPL" in tickers
+    assert "AAPL" not in tickers
+
+
+@pytest.mark.asyncio
+async def test_execute_llm_actions_watchlist_bad_item_annotated_error() -> None:
+    """An invalid action string is rejected by _validate_watchlist_item()
+    before ever touching the watchlist table."""
+    await _init_tables()
+    cache = PriceCache()
+    market_source = SimulatorMarketDataSource()
+    lock = asyncio.Lock()
+
+    response = ChatResponseSchema(
+        message="ok",
+        watchlist_changes=[
+            LlmWatchlistChange(ticker="PYPL", action="hold"),
+        ],
+    )
+
+    result = await execute_llm_actions(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        response=response,
+    )
+
+    assert len(result.watchlist_changes) == 1
+    assert result.watchlist_changes[0].outcome == "error"
+    assert result.watchlist_changes[0].reason is not None
+
+    tickers = await watchlist_module.get_watchlist_tickers()
+    assert "PYPL" not in tickers
+
+
+@pytest.mark.asyncio
+async def test_execute_llm_actions_watchlist_unknown_ticker_rejected() -> None:
+    """A ticker outside SimulatorMarketDataSource.TICKER_UNIVERSE is
+    rejected with an error annotation and never reaches the watchlist
+    table."""
+    await _init_tables()
+    cache = PriceCache()
+    market_source = SimulatorMarketDataSource()
+    lock = asyncio.Lock()
+
+    response = ChatResponseSchema(
+        message="ok",
+        watchlist_changes=[
+            LlmWatchlistChange(ticker="ZZZZ", action="add"),
+        ],
+    )
+
+    result = await execute_llm_actions(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        response=response,
+    )
+
+    assert len(result.watchlist_changes) == 1
+    assert result.watchlist_changes[0].outcome == "error"
+    assert "Unknown ticker" in result.watchlist_changes[0].reason
+
+    tickers = await watchlist_module.get_watchlist_tickers()
+    assert "ZZZZ" not in tickers
+
+
+@pytest.mark.asyncio
+async def test_execute_llm_actions_watchlist_duplicate_items_not_collapsed() -> None:
+    """Two identical watchlist add requests in the same response yield two
+    independent annotations: the first actually inserts (executed), the
+    second is a true no-op (error), matching CR-01's fixed contract."""
+    await _init_tables()
+    cache = PriceCache()
+    market_source = SimulatorMarketDataSource()
+    lock = asyncio.Lock()
+
+    response = ChatResponseSchema(
+        message="ok",
+        watchlist_changes=[
+            LlmWatchlistChange(ticker="PYPL", action="add"),
+            LlmWatchlistChange(ticker="PYPL", action="add"),
+        ],
+    )
+
+    result = await execute_llm_actions(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        response=response,
+    )
+
+    assert len(result.watchlist_changes) == 2
+    assert result.watchlist_changes[0].outcome == "executed"
+    assert result.watchlist_changes[1].outcome == "error"
+    assert result.watchlist_changes[1].reason == "PYPL is already on the watchlist"
+
+
+@pytest.mark.asyncio
+async def test_execute_llm_actions_watchlist_noop_add_reports_error() -> None:
+    """CR-01 regression: adding a ticker already on the watchlist must not
+    be reported as "executed" — nothing was actually inserted."""
+    await _init_tables()
+    cache = PriceCache()
+    market_source = SimulatorMarketDataSource()
+    lock = asyncio.Lock()
+
+    response = ChatResponseSchema(
+        message="ok",
+        watchlist_changes=[
+            LlmWatchlistChange(ticker="AAPL", action="add"),  # already seeded
+        ],
+    )
+
+    result = await execute_llm_actions(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        response=response,
+    )
+
+    assert len(result.watchlist_changes) == 1
+    assert result.watchlist_changes[0].outcome == "error"
+    assert result.watchlist_changes[0].reason == "AAPL is already on the watchlist"
+
+
+@pytest.mark.asyncio
+async def test_execute_llm_actions_watchlist_noop_remove_reports_error() -> None:
+    """CR-01 regression: removing a ticker that isn't on the watchlist must
+    not be reported as "executed" — nothing was actually deleted."""
+    await _init_tables()
+    cache = PriceCache()
+    market_source = SimulatorMarketDataSource()
+    lock = asyncio.Lock()
+
+    response = ChatResponseSchema(
+        message="ok",
+        watchlist_changes=[
+            LlmWatchlistChange(ticker="PYPL", action="remove"),  # never added
+        ],
+    )
+
+    result = await execute_llm_actions(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        response=response,
+    )
+
+    assert len(result.watchlist_changes) == 1
+    assert result.watchlist_changes[0].outcome == "error"
+    assert result.watchlist_changes[0].reason == "PYPL is not on the watchlist"
