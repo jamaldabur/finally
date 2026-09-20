@@ -47,6 +47,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   // synchronously before any await, mirroring portfolioStore.tsx's
   // isRefreshingRef and TradeBar's isSubmitting guard.
   const isSendingRef = useRef(false);
+  // Guards against the mount-only hydrate fetch resolving *after*
+  // sendMessage() has already started (or finished) — without this, a fast
+  // send racing a slow GET /api/chat can have the hydrate's setMessages(
+  // history) clobber the in-flight/just-sent exchange with a stale
+  // pre-send snapshot (WR-01). Once a send has started this session, the
+  // hydrate must never overwrite state again.
+  const hasSentRef = useRef(false);
   const { refresh: refreshPortfolio } = usePortfolio();
 
   // Mount-only hydrate, written as a self-contained async IIFE (not a call
@@ -58,11 +65,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         const { messages: history } = await fetchChatHistory();
-        if (cancelled) return;
+        if (cancelled || hasSentRef.current) return;
         setMessages(history);
         setHydrateError(null);
       } catch {
-        if (cancelled) return;
+        if (cancelled || hasSentRef.current) return;
         setHydrateError("Failed to load conversation history.");
         setMessages([]);
       }
@@ -75,6 +82,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   async function sendMessage(text: string): Promise<boolean> {
     if (isSendingRef.current) return false;
     isSendingRef.current = true;
+    hasSentRef.current = true;
 
     const trimmed = text.trim();
     const clientId = crypto.randomUUID();
