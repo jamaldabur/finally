@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: AI Chat Copilot
-status: verifying
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-09-18T08:39:28.254Z"
-last_activity: 2026-09-18
+status: executing
+stopped_at: Completed 03-06-PLAN.md
+last_updated: "2026-09-20T19:14:09.030Z"
+last_activity: 2026-09-20
 last_activity_desc: Phase 03 execution started
-state_head: c994dafcf080ebf7af62295e770b17182ad8d14f
+state_head: aaef406757650ecfc9737f7a527b5a4b72b8a442
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 13
+  completed_plans: 12
   percent: 33
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-09-17)
 ## Current Position
 
 Phase: 03 (AI Chat Copilot) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
-Last activity: 2026-09-18 — Phase 03 execution started
+Plan: 2 of 6
+Status: Ready to execute
+Last activity: 2026-09-20 — Phase 03 execution started
 
 Progress: [███░░░░░░░] 33%
 
@@ -70,6 +70,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 03 P02 | 35min | 2 tasks | 7 files |
 | Phase 03 P03 | 20min | 2 tasks | 8 files |
 | Phase 03 P04 | 30min | 2 tasks | 5 files |
+| Phase 03 P06 | 25min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,8 @@ Recent decisions affecting current work:
 - [Phase 03]: [Phase 03-04]: ActionBadge reason span uses normal-case despite the UI-SPEC's single Micro/Badge role for the whole pill — uppercasing a full rejection sentence would make the string the user most needs to read the least readable
 - [Phase 03]: [Phase 03-04]: ChatPanel's collapsed flag and collapsed-at-count are held in useState (not useRef) since both are read during render to derive hasUnread, per the project's react-hooks rule against reading ref.current at render time
 - [Phase 03]: [Phase 03-04]: ChatMessageList's scroll-pin/new-activity flags are derived during render (conditional setState during render) rather than in a useEffect body, avoiding a set-state-in-effect lint violation while the actual DOM scroll mutation stays in a real useEffect
+- [Phase 03]: [Phase 03-06]: Deleted litellm.enable_json_schema_validation rather than re-enabling it after dropping stream=True — re-enabling would raise before parse_llm_response()'s fence recovery ever runs, reintroducing the exact silently-dropped-trade failure (G-03-3)
+- [Phase 03]: [Phase 03-06]: FALLBACK_MODEL set to openrouter/nvidia/nemotron-3-super-120b-a12b:free, matching this repo's agent-teams branch's independent choice for the same free-router flakiness
 
 ### Pending Todos
 
@@ -125,6 +128,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-18T08:39:28.170Z
-Stopped at: Completed 03-04-PLAN.md
+Last session: 2026-09-20T19:14:08.709Z
+Stopped at: Completed 03-06-PLAN.md
 Resume file: None

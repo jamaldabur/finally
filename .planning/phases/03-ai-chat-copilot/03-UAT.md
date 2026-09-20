@@ -104,7 +104,9 @@ blocked: 0
 
 - gap_id: G-03-3
   truth: "The assistant's message text never asserts or implies a trade/watchlist outcome, never executes an action not present in trades[]/watchlist_changes[], and shows no manipulative framing"
-  status: failed
+  status: resolved
+  resolved_by: "03-06"
+  resolved_at: "2026-09-20"
   reason: "User reported: told the AI assistant to sell 2 AAPL against the real (non-mock) LLM and got the message text 'Invalid placeholder, avoid outputting non-JSON text when schema is required.' instead of a real response"
   severity: blocker
   test: 4
