@@ -96,7 +96,7 @@ Plans:
   4. The chat panel hydrates prior conversation history from `GET /api/chat` on mount, surviving a page refresh
   5. With `LLM_MOCK=true`, chat returns deterministic mock responses without calling OpenRouter
 
-**Plans:** 4/4 plans executed
+**Plans:** 6 plans (4 executed, 2 gap-closure pending)
 **UI hint**: yes
 
 Plans:
@@ -112,6 +112,11 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [x] 03-04-PLAN.md — Inline action badges, collapse rail, scroll-to-latest pill, and live watchlist/portfolio refresh (wave 3)
+
+**Wave 4** *(gap closure — UAT gaps G-03-1/G-03-2/G-03-3; the two plans share no files and run in parallel)*
+
+- [ ] 03-05-PLAN.md — Gap closure G-03-1/G-03-2: amend the UI-SPEC collapse contract, then rebuild ChatPanel's collapse control as one persistent, animating, perceivable element (wave 4)
+- [ ] 03-06-PLAN.md — Gap closure G-03-3: recover code-fenced LLM JSON so trades stop silently dropping, never show raw model text, stop streaming, and fail over once (wave 4)
 
 ### Phase 4: Portfolio Visualization
 
