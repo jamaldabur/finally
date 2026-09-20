@@ -160,3 +160,12 @@ This closes UAT gap G-03-3 (blocker — the most severe of the three Phase 03 UA
 ---
 *Phase: 03-ai-chat-copilot*
 *Completed: 2026-09-20*
+
+## Self-Check: PASSED
+
+- FOUND: backend/app/llm/client.py
+- FOUND: backend/tests/llm/test_client.py
+- FOUND: .planning/phases/03-ai-chat-copilot/03-06-SUMMARY.md
+- FOUND commit: db1575d (test)
+- FOUND commit: 4d0999c (feat)
+- FOUND commit: a09e940 (docs/summary)
