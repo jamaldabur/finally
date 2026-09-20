@@ -8,11 +8,21 @@
 it branches mock vs. real internally so `app/routes/chat.py` never has to
 know which path ran.
 
-`litellm.enable_json_schema_validation = True` is set at module import time
-as a client-side backstop: OpenRouter's structured-output enforcement is
-provider-dependent (03-RESEARCH.md Pitfall 1), so this makes LiteLLM itself
-validate the model's JSON against the schema rather than trusting the
-provider unconditionally.
+Schema validation is owned entirely by this module's own
+`parse_llm_response()`, not by any library-level toggle. A debug session
+(`.planning/debug/llm-raw-garbage-as-message.md`, G-03-3) found this module
+previously set a LiteLLM client-side validation flag as a described
+backstop, but that flag's only consumer in the library never ran, because
+the structured call itself streamed its response — so it was dead code,
+and the raw model text it should have blocked was rendered to the user
+verbatim on every parse failure, with no log line. Streaming is gone now (see
+`_call_model_once()` below), which would make that flag live again — but
+re-enabling it would be strictly worse than removing it: it raises *before*
+`parse_llm_response()`'s own fence-recovery logic ever runs, which would
+reintroduce the exact silently-dropped-trade failure this module now
+prevents. `parse_llm_response()` validates against the same schema and
+additionally recovers a markdown-fenced valid response, so it is a
+strictly better validator than the library flag ever was.
 """
 
 from __future__ import annotations
@@ -20,9 +30,17 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 
-import litellm
-from litellm import acompletion
+from litellm import (
+    APIConnectionError,
+    APIError,
+    AuthenticationError,
+    RateLimitError,
+    ServiceUnavailableError,
+    Timeout,
+    acompletion,
+)
 from pydantic import ValidationError
 
 from .mock import build_mock_response
@@ -30,9 +48,63 @@ from .schema import ChatResponseSchema
 
 logger = logging.getLogger(__name__)
 
-litellm.enable_json_schema_validation = True
-
 MODEL = "openrouter/openrouter/free"
+
+# Last-resort safety net for when the free auto-router endpoint itself has
+# trouble — a distinct, non-router free model (this repo's own agent-teams
+# branch independently settled on the same one for the same reason). A
+# paid model is not viable here: this OpenRouter account has no purchased
+# credits, which is the 402 that caused Plan 03-01's model deviation in the
+# first place. Used at most once per turn, only after a transient error on
+# MODEL — see `_TRANSIENT_ERRORS` below.
+FALLBACK_MODEL = "openrouter/nvidia/nemotron-3-super-120b-a12b:free"
+
+# Errors worth exactly one further attempt against FALLBACK_MODEL: the
+# provider/router had trouble serving the request (rate-limited,
+# momentarily unavailable, connection/timeout hiccup). Deliberately
+# narrower than a bare `except Exception` — AuthenticationError and
+# BadRequestError are real configuration bugs that a second model cannot
+# fix and must not be hidden behind one, so neither appears here; imported
+# above only so `_call_llm_structured()` lets them propagate untouched.
+_TRANSIENT_ERRORS = (
+    RateLimitError,
+    APIError,
+    ServiceUnavailableError,
+    Timeout,
+    APIConnectionError,
+)
+
+# Two distinct, named, user-visible fallback sentences — assertable by
+# content from a test, unlike the truthiness-only oracle that let G-03-3
+# ship. "Could not reach" (a real exception at the call site: network,
+# rate limit, or both models failing) and "could not understand" (a reply
+# arrived but failed schema validation even after fence recovery) are
+# different situations, and the user benefits from being able to tell them
+# apart.
+LLM_UNAVAILABLE_MESSAGE = (
+    "I'm having trouble reaching the assistant right now — please try again shortly."
+)
+PARSE_FALLBACK_MESSAGE = "I could not understand the assistant's reply — please try again."
+
+# Anchored at both ends so it only matches when the ENTIRE trimmed text is
+# one fenced block (not merely a text that happens to contain a fenced
+# excerpt somewhere in the middle); non-greedy across newlines (re.DOTALL)
+# so a fence whose body itself contains a backtick sequence doesn't overrun
+# past the first closing fence. Compiled once at module scope and applied
+# at most once per parse (T-03-26) — never in a loop, never re-applied to
+# its own output — so a pathological input cannot drive repeated stripping.
+_CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)
+
+
+def _strip_code_fence(text: str) -> str:
+    """Returns the fenced body when the whole trimmed `text` is one
+    markdown code fence (```json ... ``` or an untagged ``` ... ```), and
+    returns `text` unchanged otherwise. The caller compares the result
+    against the trimmed input to decide whether stripping actually did
+    anything before retrying validation."""
+    match = _CODE_FENCE_RE.match(text.strip())
+    return match.group(1) if match else text
+
 
 # PLAN.md §9 step 2 says "recent conversation history" without a number, and
 # 03-RESEARCH.md Pitfall 5 flags the unbounded-growth cost of feeding the
@@ -130,36 +202,94 @@ def build_messages(
     return messages
 
 
-async def _call_llm_structured(messages: list[dict]) -> str:
-    """Follows .claude/skills/litellm-stream/SKILL.md's structured-output
-    snippet, async: internal streaming is purely a server-side accumulation
-    detail — POST /api/chat itself returns one complete JSON body
-    (PLAN.md §9 step 4), never a streamed response to the browser."""
+async def _call_model_once(model: str, messages: list[dict]) -> str:
+    """Single non-streaming structured-output call against `model`. Not
+    passing a truthy `stream` is the load-bearing fix for G-03-3's silent
+    failure: the earlier version of this call streamed the response, which
+    was purely a server-side accumulation detail — `POST /api/chat` itself
+    always returns one complete JSON body (PLAN.md §9 step 4), never a
+    streamed response to the browser — but streaming also routed every
+    provider/validation error around LiteLLM's normal error-raising path,
+    so a bad response returned silently with HTTP 200 and zero log lines.
+    Without streaming, the identical failure surfaces as a real exception
+    here, where the caller can log it and, if it's transient, fail over."""
     response = await acompletion(
-        model=MODEL,
+        model=model,
         messages=messages,
         response_format=ChatResponseSchema,
         reasoning_effort="low",
-        stream=True,
     )
-    json_string = ""
-    async for chunk in response:
-        content = chunk.choices[0].delta.content
-        if content:
-            json_string += content
-    return json_string
+    content = response.choices[0].message.content
+    return content or ""
+
+
+async def _call_llm_structured(messages: list[dict]) -> str:
+    """Tries MODEL once; on a transient provider error (`_TRANSIENT_ERRORS`
+    above), tries FALLBACK_MODEL once with the identical `messages` list —
+    nothing derived from the failed attempt is added, since that text is
+    untrusted model output (T-03-27). No loop, no recursion, no retry
+    counter: exactly two attempts, expressed as two straight-line calls.
+    An authentication or bad-request error is not transient and is left to
+    propagate immediately, so `get_chat_response()`'s handler surfaces it
+    as a real configuration bug instead of masking it behind a second
+    model."""
+    try:
+        return await _call_model_once(MODEL, messages)
+    except _TRANSIENT_ERRORS as exc:
+        logger.warning(
+            "Primary model %s failed transiently, trying fallback model %s: %s: %s",
+            MODEL,
+            FALLBACK_MODEL,
+            type(exc).__name__,
+            exc,
+        )
+        try:
+            return await _call_model_once(FALLBACK_MODEL, messages)
+        except Exception as fallback_exc:
+            logger.error(
+                "Fallback model %s also failed: %s: %s",
+                FALLBACK_MODEL,
+                type(fallback_exc).__name__,
+                fallback_exc,
+            )
+            raise
 
 
 def parse_llm_response(raw: str) -> ChatResponseSchema:
-    """Defensive parse — must never raise. Empty content, non-JSON text, or
-    JSON that fails schema validation all fall back to a message-only
-    response rather than a 5xx (CHAT-02 edge cases)."""
+    """Defensive parse — must never raise, on any input. First attempts
+    validation of the raw text as-is. On failure, computes the
+    fence-stripped text and, only if it actually differs from the trimmed
+    input, retries validation once against it — this fence recovery is the
+    load-bearing fix for G-03-3: without it, a correctly-formed response
+    wrapped in a markdown code fence (a documented free-router quirk) is
+    rejected and its trades vanish silently, and the user is told nothing
+    happened. Only when both attempts fail does this log a warning
+    (exception type plus a bounded prefix of the raw text — never the whole
+    body) and return PARSE_FALLBACK_MESSAGE with both action lists empty.
+    The model's own text is never assigned into the returned message on any
+    path: as the debug session established, pydantic tags unparseable
+    garbage and legitimate prose identically (`json_invalid` for both), so
+    no classifier can separate a leaked instruction string from a real
+    answer — the only safe behavior is to never show raw model text."""
     try:
         return ChatResponseSchema.model_validate_json(raw)
-    except (ValidationError, json.JSONDecodeError, ValueError):
-        stripped = raw.strip()
-        message = stripped if stripped else "I couldn't process that — please try again."
-        return ChatResponseSchema(message=message, trades=[], watchlist_changes=[])
+    except (ValidationError, json.JSONDecodeError, ValueError) as first_exc:
+        stripped = _strip_code_fence(raw)
+        if stripped != raw.strip():
+            try:
+                return ChatResponseSchema.model_validate_json(stripped)
+            except (ValidationError, json.JSONDecodeError, ValueError):
+                pass
+        logger.warning(
+            "Failed to parse LLM response as %s: %s: %s (raw prefix: %r)",
+            ChatResponseSchema.__name__,
+            type(first_exc).__name__,
+            first_exc,
+            raw[:200],
+        )
+        return ChatResponseSchema(
+            message=PARSE_FALLBACK_MESSAGE, trades=[], watchlist_changes=[]
+        )
 
 
 async def get_chat_response(
@@ -190,7 +320,7 @@ async def get_chat_response(
         # app/market/massive.py's MASSIVE_API_KEY handling).
         logger.error("LLM call failed: %s: %s", type(exc).__name__, exc)
         return ChatResponseSchema(
-            message="I'm having trouble reaching the assistant right now — please try again shortly.",
+            message=LLM_UNAVAILABLE_MESSAGE,
             trades=[],
             watchlist_changes=[],
         )
