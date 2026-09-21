@@ -96,7 +96,7 @@ Plans:
   4. The chat panel hydrates prior conversation history from `GET /api/chat` on mount, surviving a page refresh
   5. With `LLM_MOCK=true`, chat returns deterministic mock responses without calling OpenRouter
 
-**Plans:** 8 plans (6 executed, 2 gap-closure pending)
+**Plans:** 7/8 plans executed (6 executed, 2 gap-closure pending)
 **UI hint**: yes
 
 Plans:
@@ -121,7 +121,7 @@ Plans:
 **Wave 5** *(gap closure — round-2 UAT gaps G-03-4/G-03-5/G-03-6; the two plans share no files and run in parallel)*
 
 - [ ] 03-07-PLAN.md — Gap closure G-03-4: let the chat column stretch to full height instead of collapsing to a corner chip, stand the collapsed rail's label upright, and amend the UI-SPEC to state the rail's height (wave 5)
-- [ ] 03-08-PLAN.md — Gap closure G-03-5/G-03-6: normalize each LLM action once and reuse it for validation and execution, recover a sell's redundant negative sign, and tell the model the sign convention (wave 5)
+- [x] 03-08-PLAN.md — Gap closure G-03-5/G-03-6: normalize each LLM action once and reuse it for validation and execution, recover a sell's redundant negative sign, and tell the model the sign convention (wave 5)
 
 ### Phase 4: Portfolio Visualization
 
@@ -179,7 +179,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|-----------------|--------|-----------|
 | 1. Backend Trading Engine | 4/4 | Complete    | 2026-09-16 |
 | 2. Core Trading UI | 3/3 | Complete    | 2026-09-17 |
-| 3. AI Chat Copilot | 6/6 | In Progress|  |
+| 3. AI Chat Copilot | 7/8 | In Progress|  |
 | 4. Portfolio Visualization | TBD | Not started | - |
 | 5. Docker Packaging & Deployment | TBD | Not started | - |
 | 6. Test Coverage | TBD | Not started | - |

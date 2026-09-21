@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: AI Chat Copilot
 status: executing
-stopped_at: Completed 03-05-PLAN.md
-last_updated: "2026-09-21T10:52:25.255Z"
-last_activity: 2026-09-20
+stopped_at: Completed 03-08-PLAN.md
+last_updated: "2026-09-21T15:44:58.457Z"
+last_activity: 2026-09-21
 last_activity_desc: Phase 03 execution started
-state_head: 92deddeb7bc52d066650b2274c0e9bfd2b5023a2
+state_head: 8f60cb7a024b0caba0813e3ed853743f3f3639d2
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 15
+  completed_plans: 14
   percent: 33
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-09-17)
 ## Current Position
 
 Phase: 03 (AI Chat Copilot) — EXECUTING
-Plan: 3 of 6
+Plan: 2 of 8
 Status: Ready to execute
-Last activity: 2026-09-20 — Phase 03 execution started
+Last activity: 2026-09-21 — Phase 03 execution started
 
 Progress: [███░░░░░░░] 33%
 
@@ -72,6 +72,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 03 P04 | 30min | 2 tasks | 5 files |
 | Phase 03 P06 | 25min | 2 tasks | 2 files |
 | Phase 03 P05 | 35min | 2 tasks | 2 files |
+| Phase 03 P08 | 45min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -111,6 +112,9 @@ Recent decisions affecting current work:
 - [Phase 03]: [Phase 03]: [Phase 03-05]: Amended 03-UI-SPEC.md before touching ChatPanel.tsx (spec-first) since the debug session traced G-03-1/G-03-2 to the spec itself, not the 03-04 executor's faithful implementation of it
 - [Phase 03]: [Phase 03]: [Phase 03-05]: Collapsed rail's WCAG 1.4.11 fix targets the edge token (border-terminal-text-muted, ~6.2:1), not the fill, so the rail doesn't become the brightest surface on screen and compete with the chat content it stands in for
 - [Phase 03]: [Phase 03]: [Phase 03-05]: ChatPanel's collapsed/expanded states merged into one persistent width-owning wrapper (transition-[width]) instead of two disjoint conditional returns, since CSS cannot interpolate a width across an unmount/remount
+- [Phase 03]: [Phase 03-08]: Annotations now report the normalized ticker/side/quantity/action values, not the raw model item -- the coherent choice once validation and execution both read the single normalized result from _normalize_trade_item()/_normalize_watchlist_item()
+- [Phase 03]: [Phase 03-08]: LlmWatchlistChange intentionally received no Field(description=...) this round -- its padded-action failure (G-03-6) is closed structurally by the single-normalization fix in actions.py, so a schema hint there would reduce nothing still reachable
+- [Phase 03]: [Phase 03-08]: backend/app/portfolio/service.py and backend/app/llm/mock.py were deliberately left unmodified -- execute_trade()'s own quantity guard is the last line of defense for direct non-chat callers, and mock.py's regex patterns are a determinism contract for Phase 6's E2E suite
 
 ### Pending Todos
 
@@ -132,6 +136,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-21T10:52:25.045Z
-Stopped at: Completed 03-05-PLAN.md
+Last session: 2026-09-21T15:44:58.289Z
+Stopped at: Completed 03-08-PLAN.md
 Resume file: None
