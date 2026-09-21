@@ -99,11 +99,15 @@ _CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)
 def _strip_code_fence(text: str) -> str:
     """Returns the fenced body when the whole trimmed `text` is one
     markdown code fence (```json ... ``` or an untagged ``` ... ```), and
-    returns `text` unchanged otherwise. The caller compares the result
-    against the trimmed input to decide whether stripping actually did
-    anything before retrying validation."""
-    match = _CODE_FENCE_RE.match(text.strip())
-    return match.group(1) if match else text
+    returns the *trimmed* `text` unchanged otherwise (not the raw input) so
+    the caller's `stripped != raw.strip()` comparison is meaningful — a
+    text with only leading/trailing whitespace and no fence must compare
+    equal, not spuriously differ. The caller compares the result against
+    the trimmed input to decide whether stripping actually did anything
+    before retrying validation."""
+    trimmed = text.strip()
+    match = _CODE_FENCE_RE.match(trimmed)
+    return match.group(1) if match else trimmed
 
 
 # PLAN.md §9 step 2 says "recent conversation history" without a number, and
