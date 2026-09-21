@@ -33,6 +33,13 @@ export function WatchlistRow({ entry }: { entry: WatchlistEntry }) {
   return (
     <div
       role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          setSelectedTicker(entry.ticker);
+        }
+      }}
       onClick={() => setSelectedTicker(entry.ticker)}
       className={`flex cursor-pointer items-center justify-between border-b border-terminal-border py-1.5 text-sm last:border-b-0 ${
         selectedTicker === entry.ticker
