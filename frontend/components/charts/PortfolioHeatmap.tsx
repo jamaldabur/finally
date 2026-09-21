@@ -7,9 +7,36 @@
  * the backend is the sole authority for every figure (D-04).
  */
 
-import { ResponsiveContainer, Treemap } from "recharts";
+import { ResponsiveContainer, Tooltip, Treemap } from "recharts";
+import { formatPercent } from "@/lib/format";
 import { usePortfolio } from "@/lib/portfolioStore";
-import { CHART_ANIMATION_ACTIVE, divergingFill, tileTextColor } from "./chartTheme";
+import {
+  CHART_ANIMATION_ACTIVE,
+  HEATMAP_CAP_PCT,
+  HEX_GAIN,
+  HEX_LOSS,
+  HEX_NEUTRAL,
+  divergingFill,
+  mixColor,
+  tileTextColor,
+} from "./chartTheme";
+
+// Label-fit thresholds, measured for a 10px/600 uppercase ticker (up to five
+// glyphs, roughly 36px wide) inside the 8px inset on each side. Tune at UAT.
+// The percentage drops first (needs both lines and a wider run), the ticker
+// second; a label is drawn whole or not at all, never clipped.
+const TICKER_MIN_WIDTH = 52;
+const TICKER_MIN_HEIGHT = 26;
+const PCT_MIN_WIDTH = 64;
+const PCT_MIN_HEIGHT = 42;
+const TILE_INSET = 8;
+
+const LEGEND_STEPS = 15;
+// Left to right: full loss -> neutral -> full gain.
+const LEGEND_COLORS = Array.from({ length: LEGEND_STEPS }, (_, i) => {
+  const v = (i / (LEGEND_STEPS - 1)) * 2 - 1;
+  return mixColor(HEX_NEUTRAL, v >= 0 ? HEX_GAIN : HEX_LOSS, Math.abs(v));
+});
 
 type TileProps = {
   x?: number;
@@ -33,10 +60,10 @@ function Tile({ x = 0, y = 0, width = 0, height = 0, ticker, pct_change }: TileP
         stroke="var(--color-terminal-panel)"
         strokeWidth={2}
       />
-      {width > 40 && height > 20 && (
+      {width >= TICKER_MIN_WIDTH && height >= TICKER_MIN_HEIGHT && (
         <text
-          x={x + 8}
-          y={y + 8 + 10}
+          x={x + TILE_INSET}
+          y={y + TILE_INSET + 10}
           fontSize={10}
           fontWeight={600}
           fill={tileTextColor(pct_change)}
@@ -44,23 +71,86 @@ function Tile({ x = 0, y = 0, width = 0, height = 0, ticker, pct_change }: TileP
           {ticker}
         </text>
       )}
+      {width >= PCT_MIN_WIDTH && height >= PCT_MIN_HEIGHT && (
+        <text
+          x={x + TILE_INSET}
+          y={y + TILE_INSET + 24}
+          fontSize={10}
+          fontWeight={600}
+          fill={tileTextColor(pct_change)}
+        >
+          {formatPercent(pct_change)}
+        </text>
+      )}
     </g>
   );
 }
 
+function Legend() {
+  return (
+    <div
+      className="flex flex-col items-end gap-0.5"
+      role="img"
+      aria-label={`Colour scale: loss at -${HEATMAP_CAP_PCT}%, neutral at 0%, gain at +${HEATMAP_CAP_PCT}%`}
+    >
+      <div className="flex h-2 w-[120px] overflow-hidden rounded-sm" aria-hidden>
+        {LEGEND_COLORS.map((c, i) => (
+          <div key={i} className="flex-1" style={{ backgroundColor: c }} />
+        ))}
+      </div>
+      <div
+        className="flex w-[120px] justify-between text-xs text-terminal-text-muted"
+        aria-hidden
+      >
+        <span>−10%</span>
+        <span>0%</span>
+        <span>+10%</span>
+      </div>
+    </div>
+  );
+}
+
 export function PortfolioHeatmap() {
-  const { portfolio } = usePortfolio();
-  const data = (portfolio?.positions ?? []).map((p) => ({
+  const { portfolio, loading, error } = usePortfolio();
+  const positions = portfolio?.positions ?? [];
+  const data = positions.map((p) => ({
     ticker: p.ticker,
     market_value: p.market_value,
     pct_change: p.pct_change,
   }));
+  // Share-of-total presentation of server-computed market values; not a new
+  // financial figure.
+  const total = data.reduce((sum, d) => sum + d.market_value, 0);
 
+  // Branch order matters: the store lowers `loading` once and never raises it
+  // again, so a refetch cannot send this panel back to loading copy. A
+  // "partially populated position" is deliberately not a branch: the backend
+  // always returns complete position rows.
   return (
     <section className="flex h-60 flex-col rounded-lg border border-terminal-border bg-terminal-panel p-4">
-      <h2 className="mb-2 text-sm font-medium text-terminal-text-muted">
-        Portfolio Heatmap
-      </h2>
+      <div className="mb-2 flex items-start justify-between">
+        <h2 className="text-sm font-medium text-terminal-text-muted">
+          Portfolio Heatmap
+        </h2>
+        <Legend />
+      </div>
+
+      {loading && !portfolio && (
+        <p className="text-sm text-terminal-text-muted">Loading portfolio&hellip;</p>
+      )}
+
+      {!loading && error && !portfolio && (
+        <p className="text-sm text-red-400" role="alert">
+          {error}
+        </p>
+      )}
+
+      {portfolio && data.length === 0 && (
+        <p className="text-sm text-terminal-text-muted">
+          No positions to visualize — place a trade to see them here.
+        </p>
+      )}
+
       {data.length > 0 && (
         <div className="min-h-0 flex-1">
           <ResponsiveContainer width="100%" height="100%">
@@ -69,7 +159,33 @@ export function PortfolioHeatmap() {
               dataKey="market_value"
               isAnimationActive={CHART_ANIMATION_ACTIVE}
               content={<Tile />}
-            />
+            >
+              <Tooltip
+                content={({ active, payload }) => {
+                  if (!active || !payload || payload.length === 0) return null;
+                  const d = payload[0].payload as {
+                    ticker?: string;
+                    market_value?: number;
+                    pct_change?: number;
+                  };
+                  if (d.ticker === undefined || d.market_value === undefined) {
+                    return null;
+                  }
+                  const weight = total > 0 ? (d.market_value / total) * 100 : 0;
+                  return (
+                    <div className="rounded border border-terminal-border bg-terminal-panel px-2 py-1 text-xs text-terminal-text">
+                      <div className="font-semibold">{d.ticker}</div>
+                      <div className="tabular-nums">
+                        Weight {weight.toFixed(1)}%
+                      </div>
+                      <div className="tabular-nums">
+                        Change {formatPercent(d.pct_change ?? 0)}
+                      </div>
+                    </div>
+                  );
+                }}
+              />
+            </Treemap>
           </ResponsiveContainer>
         </div>
       )}
