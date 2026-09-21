@@ -10,6 +10,7 @@
  */
 
 import { usePriceStore } from "@/lib/priceStore";
+import { useChartSelection } from "@/lib/chartSelection";
 import { Sparkline } from "@/components/charts/Sparkline";
 import { PriceCell } from "@/components/ui/PriceCell";
 import { formatPercent } from "@/lib/format";
@@ -17,6 +18,7 @@ import type { WatchlistEntry } from "@/lib/types";
 
 export function WatchlistRow({ entry }: { entry: WatchlistEntry }) {
   const { prices, firstPrices } = usePriceStore();
+  const { selectedTicker, setSelectedTicker } = useChartSelection();
 
   const tick = prices.get(entry.ticker);
   const price = tick?.price ?? entry.price;
@@ -29,7 +31,15 @@ export function WatchlistRow({ entry }: { entry: WatchlistEntry }) {
       : null;
 
   return (
-    <div className="flex items-center justify-between border-b border-terminal-border py-1.5 text-sm last:border-b-0">
+    <div
+      role="button"
+      onClick={() => setSelectedTicker(entry.ticker)}
+      className={`flex cursor-pointer items-center justify-between border-b border-terminal-border py-1.5 text-sm last:border-b-0 ${
+        selectedTicker === entry.ticker
+          ? "bg-terminal-border/50"
+          : "hover:bg-terminal-border/20"
+      }`}
+    >
       <span className="font-medium text-terminal-text">{entry.ticker}</span>
       <div className="mx-3 h-5 min-w-0 flex-1">
         <Sparkline ticker={entry.ticker} />

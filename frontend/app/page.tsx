@@ -4,6 +4,7 @@ import { Header } from "@/components/header/Header";
 import { TradeBar } from "@/components/trade-bar/TradeBar";
 import { WatchlistPanel } from "@/components/watchlist/WatchlistPanel";
 import { PositionsTable } from "@/components/positions/PositionsTable";
+import { MainChart } from "@/components/charts/MainChart";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 
 // D-08 three-column shell: a full-width header band pinned at the top, a
@@ -26,8 +27,12 @@ export default function Home() {
           <TradeBar />
         </div>
 
-        <main className="flex-1 rounded-lg border border-terminal-border bg-terminal-panel p-4">
-          <PositionsTable />
+        {/* The centre column is a stack of independently-bordered panels. */}
+        <main className="flex min-w-0 flex-1 flex-col gap-4">
+          <MainChart />
+          <section className="rounded-lg border border-terminal-border bg-terminal-panel p-4">
+            <PositionsTable />
+          </section>
         </main>
 
         <ChatPanel />

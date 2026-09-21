@@ -4,6 +4,7 @@ import "./globals.css";
 import { PriceStoreProvider } from "@/lib/priceStore";
 import { PortfolioProvider } from "@/lib/portfolioStore";
 import { ChatProvider } from "@/lib/chatStore";
+import { ChartSelectionProvider } from "@/lib/chartSelection";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,11 +35,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           never client-derived (D-04). ChatProvider nests inside
           PortfolioProvider — load-bearing, not incidental: chatStore calls
           usePortfolio().refresh() after an assistant-executed trade, so it
-          must render below that provider or the hook throws. */}
+          must render below that provider or the hook throws.
+          ChartSelectionProvider holds only synchronous client state and
+          depends on none of the three above it, so it nests innermost and
+          the existing load-bearing orderings are untouched. */}
       <body className="min-h-full flex flex-col bg-terminal-bg text-terminal-text">
         <PriceStoreProvider>
           <PortfolioProvider>
-            <ChatProvider>{children}</ChatProvider>
+            <ChatProvider>
+              <ChartSelectionProvider>{children}</ChartSelectionProvider>
+            </ChatProvider>
           </PortfolioProvider>
         </PriceStoreProvider>
       </body>
