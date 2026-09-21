@@ -63,7 +63,7 @@ def _validate_trade_item(item: LlmTradeItem) -> str | None:
     finite quantity strictly greater than zero."""
     if not item.ticker.strip():
         return "Invalid ticker: empty"
-    if item.side not in ("buy", "sell"):
+    if item.side.strip().lower() not in ("buy", "sell"):
         return f"Invalid side: {item.side!r}"
     if not isinstance(item.quantity, (int, float)) or not math.isfinite(item.quantity):
         return f"Invalid quantity: {item.quantity!r}"
@@ -75,7 +75,7 @@ def _validate_trade_item(item: LlmTradeItem) -> str | None:
 def _validate_watchlist_item(item: LlmWatchlistChange) -> str | None:
     if not item.ticker.strip():
         return "Invalid ticker: empty"
-    if item.action not in ("add", "remove"):
+    if item.action.strip().lower() not in ("add", "remove"):
         return f"Invalid action: {item.action!r}"
     return None
 
