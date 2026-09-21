@@ -87,6 +87,18 @@ Micro/Badge cover every text surface a chart introduces:
 | Display | n/a — not used this phase | n/a | n/a |
 | Micro / Badge | 10px | 600 (semibold) | 1.2 |
 
+**Recorded exception — 3-weight system (400/500/600), not 2.** This table uses three font weights
+(400 regular, 500 medium, 600 semibold), which exceeds the design-contract dimension's 2-weight-max
+guideline. This is a deliberate, confirmed inheritance, not an oversight: this phase reuses Phase 3's
+already-shipped, already-approved 400/500/600 typography scale verbatim (see Phase 3's UI-SPEC.md line
+63, and live usage across `Header.tsx`, `WatchlistPanel.tsx`, `TradeBar.tsx`, `PositionsTable.tsx`,
+`PositionsRow.tsx`, `ChatPanel.tsx`, `ActionBadge.tsx`, and `WatchlistRow.tsx`). This phase introduces
+no new weight and does not widen the scale further — it only extends the existing three roles to new
+chart surfaces. The user confirmed this resolution on 2026-09-21, after reviewing two alternatives (a
+cosmetic spec-only fix that would misrepresent already-shipped code, and a project-wide reduction to 2
+weights across Phases 2-4), and chose to keep the 3-weight system unchanged rather than touch Phase 2/3
+shipped code or specs.
+
 Usage this phase:
 - **Heading** (14/500/1.3): "Chart" / selected-ticker-symbol panel title, "Portfolio Heatmap" panel
   title, "Portfolio Value" panel title — identical markup pattern to the existing `<h2>Watchlist</h2>` /
