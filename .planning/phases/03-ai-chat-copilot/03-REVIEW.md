@@ -2,144 +2,204 @@
 phase: 03-ai-chat-copilot
 reviewed: 2026-09-21T00:00:00Z
 depth: standard
-files_reviewed: 6
+files_reviewed: 7
 files_reviewed_list:
   - backend/app/llm/actions.py
   - backend/app/llm/client.py
+  - backend/app/llm/schema.py
   - backend/tests/llm/test_actions.py
-  - backend/tests/llm/test_client.py
+  - backend/tests/llm/test_schema.py
   - frontend/components/chat/ChatPanel.tsx
   - frontend/lib/chatStore.tsx
 findings:
   critical: 0
   warning: 3
-  info: 2
-  total: 5
+  info: 1
+  total: 4
 status: issues_found
 ---
 
-# Phase 3: Code Review Report
+# Phase 03: Code Review Report
 
 **Reviewed:** 2026-09-21T00:00:00Z
 **Depth:** standard
-**Files Reviewed:** 6
+**Files Reviewed:** 7
 **Status:** issues_found
 
 ## Summary
 
-Incremental pass over everything changed since the last review: the CR-01/WR-01/WR-02 fixes it produced, plus 03-05's ChatPanel collapse-control rebuild and 03-06's client.py fence-recovery + one-shot failover work. All three prior findings were re-verified against the current code:
+This scope covers the 03-08 backend gap closure (single-normalization for LLM
+trade/watchlist actions, sell-only negative-quantity sign recovery) and the
+03-07 frontend collapsed-chat-rail layout fix, plus `frontend/lib/chatStore.tsx`
+(picked up by a git-diff cross-check, not by the SUMMARY-based scoping).
 
-- **CR-01** (watchlist outcome discarding the real `bool`) — confirmed fixed: `execute_llm_actions()` now branches on `changed` and reports `"executed"`/`"error"` truthfully, with test coverage for both no-op cases.
-- **WR-01** (hydrate racing an early send) — confirmed fixed for the success case: `hasSentRef` now blocks the mount hydrate from clobbering a send that landed. See WR-01 below for a related failure-path regression this fix introduces.
-- **WR-02** (untested real-path LLM failure) — confirmed fixed: `test_client.py` now covers both the single-exception fallback and the both-models-fail case, asserting on `LLM_UNAVAILABLE_MESSAGE` content and an ERROR-level log record.
+The backend side (`actions.py`, `client.py`, `schema.py`) is solid: the
+single-normalization fix genuinely closes the `" add"` → delete data-loss bug
+it targets, the sell-only sign-recovery logic is correctly scoped (buy is
+deliberately left ambiguous), and the test suites in `test_actions.py` /
+`test_schema.py` exercise the documented edge cases (padding, NaN/Inf, signed
+zero, duplicate items) thoroughly and correctly. No blocker-level defects were
+found on the backend files in this scope.
 
-03-06's fence-recovery/failover work in `client.py` is solid and well-tested (fenced-JSON recovery, non-streaming call, `_TRANSIENT_ERRORS`-gated one-shot failover, authentication errors propagating untouched — independently verified against the actual `litellm`/`openai` exception hierarchy installed in this repo, since `litellm.exceptions.APIError` and `AuthenticationError`'s `openai.APIError` base are in fact distinct classes, so the transient tuple does not accidentally swallow auth errors). One small logic defect remains in the fence-recovery gate itself (WR-03 below).
-
-03-05's ChatPanel rebuild (single root element owning the width transition) reads correctly and matches its own stated rationale — no bug found there beyond a minor accessibility gap (IN-02).
-
-New findings from this pass: a failure-path regression in the WR-01 fix (chatStore.tsx), a case-sensitivity defect that makes `actions.py`'s side/action normalization dead code, and the fence-recovery whitespace-comparison bug in `client.py`. One item from the prior review (IN-01, ticker casing on the error annotation path) remains unresolved and is carried forward.
+The frontend side (`chatStore.tsx`, `ChatPanel.tsx`) has three warning-level
+issues, all timing- or wiring-related rather than crashes: (1) `sendMessage`'s
+`try` block scope is wider than the operation it's named for, so a future
+change to `refreshPortfolio()`'s error-swallowing contract would silently
+reintroduce a rollback bug against a *successfully sent* message; (2) the
+just-added "release `hasSentRef` on failed send" fix only works for one of two
+possible resolution orderings between the hydrate GET and the send POST, so it
+does not reliably prevent the history-loss scenario it was written to guard
+against; (3) the collapsed-chat-panel "unread" dot can never actually fire
+under the current wiring, since the only code path that grows the message
+list (`ChatInput`) is unmounted whenever the panel is collapsed. One unused
+import was also found in `client.py`.
 
 ## Warnings
 
-### WR-01: A failed early `sendMessage()` permanently blocks the mount-time chat history hydrate for the rest of the session
+### WR-01: `sendMessage`'s `try` block treats post-send side effects as part of the send itself
 
-**File:** `frontend/lib/chatStore.tsx:56, 68, 72, 124-133`
-**Issue:** The WR-01 fix from the prior review added `hasSentRef`, set to `true` synchronously at the very start of `sendMessage()` (line 85), and checked by the hydrate effect before it ever calls `setMessages(history)` (lines 68 and 72). This correctly protects a *successful* send from being clobbered by a slow, still-in-flight `GET /api/chat`. But the guard is unconditional and permanent — it is never cleared even when the send itself fails:
+**File:** `frontend/lib/chatStore.tsx:102-138`
+**Issue:** The `try` block wraps not just `postChatMessage()` (the actual
+send) but also the subsequent `await refreshPortfolio()` (line 115) and
+`setWatchlistRevision(...)` (line 120). If either of those throws, execution
+falls into the `catch` block (124-138), which:
+- sets `sendError` — telling the user the *message* failed to send, even
+  though `POST /api/chat` already succeeded and (per `response.trades`) may
+  have executed a real trade;
+- filters `messages` by `m.id !== clientId` (131-132), which only removes the
+  optimistic **user** message — the **assistant** message appended at line
+  112 (with the real, already-executed trade/watchlist outcome) is left in
+  the list, now orphaned with no corresponding user turn above it;
+- resets `hasSentRef.current = false` (137) with the comment "there is no
+  newer send-produced state left to protect" — which is false in this
+  specific path, since the real assistant reply *is* still in state. If a
+  still-pending mount-time hydrate then resolves, it will land a pre-send
+  snapshot of the conversation (see WR-02) and silently erase the assistant's
+  real trade confirmation from the screen.
 
-```js
-const hasSentRef = useRef(false);
-...
-async function sendMessage(text: string): Promise<boolean> {
-  if (isSendingRef.current) return false;
-  isSendingRef.current = true;
-  hasSentRef.current = true;          // armed before any await, unconditionally
-  ...
-  try {
-    const response = await postChatMessage({ message: trimmed });
-    ...
-    return true;
-  } catch (e) {
-    setSendError(...);
-    setMessages((prev) => (prev ?? []).filter((m) => m.id !== clientId));  // rollback
-    return false;                      // hasSentRef.current is left `true`
-  } finally { ... }
-}
-```
+Today this is **latent, not actively triggered**: `usePortfolio().refresh()`
+(`frontend/lib/portfolioStore.tsx:48-61`) catches its own errors internally
+and never rejects, so `await refreshPortfolio()` cannot currently throw. But
+nothing in `chatStore.tsx` enforces that contract — the function's type is
+`() => Promise<void>`, which does not guarantee it never rejects — so this is
+one implementation change away from silently reintroducing exactly the kind
+of misleading-error / orphaned-message bug this file's own `hasSentRef`
+mechanism was written to prevent, in the specific case of a trade the user
+just watched auto-execute.
 
-Sequence that loses real history for the rest of the session: page mounts, the `GET /api/chat` hydrate fetch is still in flight, the user immediately sends a message before it resolves, and that `POST /api/chat` fails (network blip, backend momentarily unreachable, rate limit). The catch block correctly rolls back the optimistic user message, but `hasSentRef.current` stays `true`. When the still-pending `GET /api/chat` later resolves with the user's real prior conversation, the hydrate effect's `if (cancelled || hasSentRef.current) return;` guard silently discards it. The panel is left showing an empty/truncated conversation for the rest of the session even though the real history exists server-side and the fetch that would have loaded it actually succeeded — only a full page reload recovers it. This is exactly the class of problem WR-01 was fixing, just on the failure branch instead of the success branch.
-
-**Fix:** Only keep the guard armed when there is actually newer, send-produced state to protect. On failure there is none (the rollback returns `messages` to essentially its pre-send shape), so release the guard:
-```js
+**Fix:** Narrow the `try` to only the send itself, and handle post-send side
+effects outside it (or in their own non-rollback-triggering try/catch):
+```ts
+let response;
+try {
+  response = await postChatMessage({ message: trimmed });
 } catch (e) {
-  setSendError(...);
+  setSendError(/* ... */);
   setMessages((prev) => (prev ?? []).filter((m) => m.id !== clientId));
-  hasSentRef.current = false; // nothing newer to protect; let a still-pending hydrate land
+  hasSentRef.current = false;
+  setIsSending(false);
+  isSendingRef.current = false;
   return false;
 }
+
+const assistantMessage: ChatMessage = { /* ... */ };
+setMessages((prev) => [...(prev ?? []), assistantMessage]);
+
+if (response.trades.some((t) => t.outcome === "executed")) {
+  await refreshPortfolio(); // failures here should not roll back the send
+}
+if (response.watchlist_changes.some((w) => w.outcome === "executed")) {
+  setWatchlistRevision((rev) => rev + 1);
+}
+setIsSending(false);
+isSendingRef.current = false;
+return true;
 ```
 
-### WR-02: Case-sensitive side/action validation makes the `.lower()` normalization in `execute_llm_actions()` dead code
+### WR-02: `hasSentRef` release on failed send only fixes one of two possible resolution orderings
 
-**File:** `backend/app/llm/actions.py:66, 78, 110, 145`
-**Issue:** `_validate_trade_item()` rejects any `side` that is not exactly `"buy"` or `"sell"` (line 66: `if item.side not in ("buy", "sell")`), and `_validate_watchlist_item()` does the same for `action` (line 78: `if item.action not in ("add", "remove")`) — both checks run against the LLM's raw, unnormalized string. Only *after* an item passes validation does `execute_llm_actions()` lower-case it (line 110: `side = item.side.lower()`; line 145: `action = change.action.lower()`). Because validation already requires an exact lowercase match, these `.lower()` calls can never actually change anything that reaches them — any response where the model emits `"Buy"`, `"BUY"`, `"Sell"`, `"Add"`, or `"Remove"` is rejected with an `error` annotation ("Invalid side: 'Buy'") one line before the normalization that would have handled it correctly ever runs.
+**File:** `frontend/lib/chatStore.tsx:63-80, 133-137`
+**Issue:** The mount-time hydrate effect (63-80) checks `hasSentRef.current`
+exactly once — at the moment `fetchChatHistory()`'s promise resolves — and
+returns early with no retry if the guard is set. `sendMessage`'s catch block
+resets `hasSentRef.current = false` on failure (137), with the stated intent
+("release the guard so a still-pending mount hydrate can land its real
+history") of letting that pending hydrate apply once the guard clears.
 
-This is a real robustness gap, not just cosmetic: `LlmTradeItem.side` / `LlmWatchlistChange.action` are declared as plain `str` in `backend/app/llm/schema.py` specifically so a single malformed item doesn't destroy the whole structured-output parse — the schema's own docstring says validation is deliberately deferred to this module. But nothing in `client.py`'s `SYSTEM_PROMPT` tells the model the exact required casing, and the JSON-schema sent via `response_format` for a bare `str` field carries no enum constraint, so a differently-cased but semantically correct trade or watchlist request from the model is plausible and will be spuriously rejected. `execute_trade()` (`backend/app/portfolio/service.py:170`) has the identical case-sensitive guard, so normalizing case *before* validating would still be fully safe — the downstream function is not the reason validation is case-sensitive here.
+This only works if the hydrate `await` has *not yet resumed* at the moment
+the reset happens — i.e. only in the ordering where the send's `POST
+/api/chat` fails before the hydrate's `GET /api/chat` resolves. In the
+opposite (equally reachable) ordering — hydrate resolves first, while
+`hasSentRef.current` is still `true` because the send hasn't failed yet — the
+effect's single check-and-return has already fired and permanently exited;
+resetting the ref afterward is a no-op, because there is no mechanism that
+re-checks the ref or re-applies the hydrate result later. In that ordering,
+a user who sends a message before the initial hydrate resolves and then has
+that send fail is left with `messages` reset to `[]` by the rollback (line
+132), never receiving the real prior conversation history the hydrate fetch
+already had in hand — the exact "history vanishes" failure mode this
+mechanism exists to prevent.
 
-**Fix:** Validate against the normalized value instead of the raw one, and reuse it:
-```python
-def _validate_trade_item(item: LlmTradeItem) -> str | None:
-    if not item.ticker.strip():
-        return "Invalid ticker: empty"
-    if item.side.strip().lower() not in ("buy", "sell"):
-        return f"Invalid side: {item.side!r}"
-    ...
-```
-and likewise for `_validate_watchlist_item()`'s `action` check, so `"Buy"`/`"ADD"`/etc. validate and execute correctly instead of being rejected one line before the normalization meant to handle them.
+Because this depends entirely on unsynchronized network timing between two
+independent requests, it is a race condition, not a resolved fix: it happens
+to work in one ordering and silently does nothing in the other.
 
-### WR-03: `parse_llm_response()`'s fence-recovery retry runs even when no code fence was present, contradicting its own documented "only if it differs" invariant
+**Fix:** Instead of a boolean latch checked once, either (a) buffer the
+hydrate result and apply it explicitly from `sendMessage`'s catch block once
+the guard is released (so there is an actual re-check after the reset), or
+(b) narrow the guard so it only ever discards a hydrate result if `messages`
+already reflects newer, real (non-rolled-back) state at the time the hydrate
+resolves — e.g. compare against a ref that is only set once a send has
+*successfully* produced a message, not merely started.
 
-**File:** `backend/app/llm/client.py:99-106, 277-278`
-**Issue:** `_strip_code_fence()` is supposed to signal "no fence found" by returning the input unchanged, so the caller can compare against the *trimmed* input to decide whether a retry is worthwhile:
-```python
-def _strip_code_fence(text: str) -> str:
-    match = _CODE_FENCE_RE.match(text.strip())
-    return match.group(1) if match else text   # returns raw `text`, not `text.strip()`, on no-match
-```
-```python
-stripped = _strip_code_fence(raw)
-if stripped != raw.strip():          # compares raw-on-no-match against raw.strip()
-    try:
-        return ChatResponseSchema.model_validate_json(stripped)
-    except (ValidationError, json.JSONDecodeError, ValueError):
-        pass
-```
-When there is no fence, `_strip_code_fence()` returns `text` unmodified (not `text.strip()`). If `raw` has any leading/trailing whitespace, `stripped` (== `raw`) is then compared against `raw.strip()`, and the two differ purely because of that whitespace — `if stripped != raw.strip()` is spuriously `True` even though no fence-stripping happened. This triggers a second `ChatResponseSchema.model_validate_json(stripped)` call with `stripped == raw`, i.e. byte-for-byte the same input already tried and already failed on line 275. It is harmless in effect (the retry is guaranteed to fail identically, since JSON parsing already tolerates surrounding whitespace), but it is dead, wasted work that directly contradicts the module's own documented threat mitigation (T-03-26: "The retry only runs when the stripped text actually differs from the input, so a text that strips to itself terminates immediately") and the docstring's claim that the retry only fires "only if it actually differs from the trimmed input." Verified directly:
-```python
->>> _strip_code_fence("  I think you should buy Apple.  ") != "  I think you should buy Apple.  ".strip()
-True   # no fence present, yet the "differs" check fires
-```
-**Fix:** Have `_strip_code_fence()` return the trimmed text (not the raw input) on a no-match, so the comparison is meaningful:
-```python
-def _strip_code_fence(text: str) -> str:
-    trimmed = text.strip()
-    match = _CODE_FENCE_RE.match(trimmed)
-    return match.group(1) if match else trimmed
-```
-With that change, `stripped != raw.strip()` is `False` whenever no fence was present, and the redundant retry is skipped as intended.
+### WR-03: Collapsed-panel "unread" indicator can never fire under current wiring
+
+**File:** `frontend/components/chat/ChatPanel.tsx:65-92, 98-183`
+**Issue:** `hasUnread` (78-79) is derived from `unreadBaseline` (armed on
+collapse, 81-87) compared against the live `messageCount`. The only code path
+that can grow `messages` after mount is `sendMessage()`, which is only
+reachable through `<ChatInput />` (181) — and `<ChatInput />` is rendered
+exclusively inside the `!collapsed` branch (130-182); the `collapsed` branch
+(98-128) renders only the rail button, never `ChatInput`. Since the panel
+must be `collapsed` for `hasUnread` to be evaluated true (line 79 requires
+`collapsed`), and `collapsed` being true means `ChatInput` is unmounted and no
+new message can be appended, `messageCount` cannot change while `collapsed`
+is `true` (the only other writer, the mount-time hydrate, is explicitly
+excluded from arming a nonzero baseline via the `messages !== null ?
+messageCount : null` check at line 85, per the G-03-2 fix). The result: this
+entire feature — state, handlers, and the yellow-dot render (122-127) — is
+dead code that can never produce a visible dot under this file's current
+wiring.
+
+**Fix:** Either remove the unread-tracking state/logic as unreachable, or (if
+a future change intends messages to arrive while collapsed, e.g. via a
+server push) leave a comment recording that today's wiring makes this
+unreachable, so a future reviewer doesn't waste time trying to reproduce a
+"broken" unread dot that has in fact never been reachable.
 
 ## Info
 
-### IN-01 (carried forward, still unresolved): Ticker casing/whitespace inconsistent between error and success annotations
+### IN-01: Unused import `AuthenticationError` in client.py
 
-**File:** `backend/app/llm/actions.py:99` (trades), `~136` (watchlist)
-**Issue:** This was flagged in the prior review (IN-01) and has not been addressed in this pass. On the validation-error path, `AnnotatedTrade.ticker` / `AnnotatedWatchlistChange.ticker` are still built from `item.ticker` / `change.ticker` verbatim — whatever casing/whitespace the model produced — while the success path normalizes with `.strip().upper()` (lines 109, 144) before constructing the annotation. A user can still see a badge reading e.g. "✕ buy 5 aapl" for a rejected trade next to "✓ buy 5 AAPL" for an accepted one in the same response, purely from this inconsistency.
-**Fix:** Compute `normalized_ticker = item.ticker.strip().upper()` up front in each loop body and use it in both the error and success branches.
-
-### IN-02: The collapsed-rail "unread" indicator is purely visual and not exposed to assistive technology
-
-**File:** `frontend/components/chat/ChatPanel.tsx:76-105`
-**Issue:** When the panel is collapsed and new messages arrive, `hasUnread` renders a small yellow dot (`aria-hidden="true"`, lines 100-104) as the only signal that there's something new. The rail button's accessible name stays the static `"Expand chat panel"` (line 80) regardless of `hasUnread` — a screen reader user gets no equivalent of the sighted "there's a new message" cue the dot provides. Given this same component already reasons carefully about contrast ratios for the rail's border/background (lines 82-86), the purely-visual unread cue reads as a gap rather than a deliberate omission.
-**Fix:** Fold the unread state into the accessible name, e.g. `aria-label={hasUnread ? "Expand chat panel (new message)" : "Expand chat panel"}`.
+**File:** `backend/app/llm/client.py:38`
+**Issue:** `AuthenticationError` is imported from `litellm` alongside the
+other exception types but is never referenced anywhere in the module except
+in a comment (line 65) explaining why it is *not* included in
+`_TRANSIENT_ERRORS`. It is dead weight — a linter (ruff/flake8 F401) would
+flag it, and a reader scanning usages will not find where it's actually
+"used" as the comment implies.
+**Fix:** Remove the import; the comment on line 65 already documents the
+intent without needing the name bound:
+```python
+from litellm import (
+    APIConnectionError,
+    APIError,
+    RateLimitError,
+    ServiceUnavailableError,
+    Timeout,
+    acompletion,
+)
+```
 
 ---
 
