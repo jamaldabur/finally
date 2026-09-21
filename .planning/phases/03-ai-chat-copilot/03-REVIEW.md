@@ -1,164 +1,148 @@
 ---
 phase: 03-ai-chat-copilot
-reviewed: 2026-09-18T00:00:00Z
+reviewed: 2026-09-21T00:00:00Z
 depth: standard
-files_reviewed: 30
+files_reviewed: 6
 files_reviewed_list:
-  - .claude/CLAUDE.md
-  - .claude/skills/litellm-stream/SKILL.md
-  - backend/app/db/chat_messages.py
-  - backend/app/llm/__init__.py
   - backend/app/llm/actions.py
   - backend/app/llm/client.py
-  - backend/app/llm/mock.py
-  - backend/app/llm/schema.py
-  - backend/app/main.py
-  - backend/app/portfolio/service.py
-  - backend/app/routes/chat.py
-  - backend/pyproject.toml
-  - backend/tests/db/test_chat_messages.py
-  - backend/tests/llm/__init__.py
   - backend/tests/llm/test_actions.py
   - backend/tests/llm/test_client.py
-  - backend/tests/llm/test_mock.py
-  - backend/tests/portfolio/test_service.py
-  - backend/tests/routes/test_chat.py
-  - backend/uv.lock
-  - frontend/app/layout.tsx
-  - frontend/app/page.tsx
-  - frontend/components/chat/ActionBadge.tsx
-  - frontend/components/chat/ChatInput.tsx
-  - frontend/components/chat/ChatMessageList.tsx
   - frontend/components/chat/ChatPanel.tsx
-  - frontend/components/watchlist/WatchlistPanel.tsx
-  - frontend/lib/api.ts
   - frontend/lib/chatStore.tsx
-  - frontend/lib/types.ts
-  - planning/PLAN.md
 findings:
-  critical: 1
+  critical: 0
   warning: 3
   info: 2
-  total: 6
+  total: 5
 status: issues_found
 ---
 
 # Phase 3: Code Review Report
 
-**Reviewed:** 2026-09-18T00:00:00Z
+**Reviewed:** 2026-09-21T00:00:00Z
 **Depth:** standard
-**Files Reviewed:** 30
+**Files Reviewed:** 6
 **Status:** issues_found
 
 ## Summary
 
-Reviewed the AI chat copilot backend (LLM client/schema/mock/actions, chat route, chat_messages persistence) and frontend (ChatPanel/ChatInput/ChatMessageList/ActionBadge/chatStore) plus the portfolio service they call into. The trade-execution path is solid: `execute_llm_actions()` correctly routes every trade through the shared `execute_trade()` validator and faithfully propagates its real `TradeResult.status`/`reason` into the per-action annotation, and the LLM-response parsing/mock layers degrade safely on malformed input. However, the watchlist-change half of the same function silently discards the boolean success/failure signal that `add_watchlist_ticker()`/`remove_watchlist_ticker()` were explicitly built to return, so the chat flow can report a watchlist action as `"executed"` when nothing was actually inserted or deleted — a real violation of PLAN.md §9 step 7 / CHAT-04's "annotate with real outcome" contract, confirmed by comparing against the manual `DELETE /api/watchlist/{ticker}` route, which does surface this same boolean correctly. There is also a plausible frontend race between the chat history hydrate fetch and an early `sendMessage()` call that can wipe a freshly sent exchange from view. Several smaller consistency and test-coverage gaps round out the findings below.
+Incremental pass over everything changed since the last review: the CR-01/WR-01/WR-02 fixes it produced, plus 03-05's ChatPanel collapse-control rebuild and 03-06's client.py fence-recovery + one-shot failover work. All three prior findings were re-verified against the current code:
 
-I verified the OpenRouter model constant (`openrouter/openrouter/free` in `backend/app/llm/client.py:35`) against the actual on-disk `planning/PLAN.md:286` and `.claude/CLAUDE.md:15/110` — all three agree, so despite an earlier-looking mismatch in this conversation's injected context, there is no model-constant bug in the code; this is noted here only to record that the discrepancy was investigated and rejected.
+- **CR-01** (watchlist outcome discarding the real `bool`) — confirmed fixed: `execute_llm_actions()` now branches on `changed` and reports `"executed"`/`"error"` truthfully, with test coverage for both no-op cases.
+- **WR-01** (hydrate racing an early send) — confirmed fixed for the success case: `hasSentRef` now blocks the mount hydrate from clobbering a send that landed. See WR-01 below for a related failure-path regression this fix introduces.
+- **WR-02** (untested real-path LLM failure) — confirmed fixed: `test_client.py` now covers both the single-exception fallback and the both-models-fail case, asserting on `LLM_UNAVAILABLE_MESSAGE` content and an ERROR-level log record.
 
-## Critical Issues
+03-06's fence-recovery/failover work in `client.py` is solid and well-tested (fenced-JSON recovery, non-streaming call, `_TRANSIENT_ERRORS`-gated one-shot failover, authentication errors propagating untouched — independently verified against the actual `litellm`/`openai` exception hierarchy installed in this repo, since `litellm.exceptions.APIError` and `AuthenticationError`'s `openai.APIError` base are in fact distinct classes, so the transient tuple does not accidentally swallow auth errors). One small logic defect remains in the fence-recovery gate itself (WR-03 below).
 
-### CR-01: Watchlist action outcomes are reported as "executed" regardless of whether anything actually changed
+03-05's ChatPanel rebuild (single root element owning the width transition) reads correctly and matches its own stated rationale — no bug found there beyond a minor accessibility gap (IN-02).
 
-**File:** `backend/app/llm/actions.py:144-170`
-**Issue:** `add_watchlist_ticker()` and `remove_watchlist_ticker()` (`backend/app/db/watchlist.py:122-132`) are documented and implemented to return a `bool` — "whether a new row was actually inserted" / "whether a row was actually removed" — precisely so callers can report a truthful outcome. `execute_llm_actions()` calls both functions and then unconditionally appends `AnnotatedWatchlistChange(..., outcome="executed", reason=None)`, discarding that return value entirely:
-
-```python
-if action == "add":
-    await add_watchlist_ticker(ticker)
-else:
-    await remove_watchlist_ticker(ticker)
-
-annotated_watchlist_changes.append(
-    AnnotatedWatchlistChange(
-        ticker=ticker, action=action, outcome="executed", reason=None,
-    )
-)
-```
-
-Concretely: if the LLM requests removing a ticker that isn't on the watchlist (e.g. a hallucinated ticker, or a duplicate remove request already answered earlier in the same response per the "duplicates are never collapsed" contract this module documents for itself), `remove_watchlist_ticker()` returns `False` (no row deleted) but the user still sees a green "✓ Removed X from watchlist" badge (`frontend/components/chat/ActionBadge.tsx:37-41`) claiming success. The equivalent manual HTTP path does this correctly for comparison — `DELETE /api/watchlist/{ticker}` returns `{"removed": true|false}` and `backend/tests/routes/test_watchlist.py:123-141` locks that contract — so this is a real regression specific to the chat/LLM path, not an inherent limitation of the underlying persistence layer.
-
-This directly contradicts PLAN.md §9 step 7 ("Annotates each requested trade/watchlist change with its outcome (`executed` or `error` + reason)") and the module's own CHAT-04 duplicate-handling guarantee, since a no-op "duplicate" watchlist change is indistinguishable from a real one in the reported outcome.
-
-No test in `backend/tests/llm/test_actions.py` or `backend/tests/routes/test_chat.py` exercises a watchlist "remove" of a ticker that isn't present, or an "add" of a ticker that's already present — the only watchlist coverage in `test_chat.py` (`test_chat_watchlist_change_auto_executes`, lines 79-90) is a fresh add that happens to succeed, so this bug has no regression test to catch it.
-
-**Fix:**
-```python
-if action == "add":
-    changed = await add_watchlist_ticker(ticker)
-else:
-    changed = await remove_watchlist_ticker(ticker)
-
-annotated_watchlist_changes.append(
-    AnnotatedWatchlistChange(
-        ticker=ticker,
-        action=action,
-        outcome="executed" if changed else "error",
-        reason=None if changed else (
-            f"{ticker} is already on the watchlist" if action == "add"
-            else f"{ticker} is not on the watchlist"
-        ),
-    )
-)
-```
-Add a regression test covering: (a) removing a ticker not currently on the watchlist reports `outcome == "error"`, and (b) adding a ticker already on the watchlist reports the no-op outcome rather than a false `"executed"`.
+New findings from this pass: a failure-path regression in the WR-01 fix (chatStore.tsx), a case-sensitivity defect that makes `actions.py`'s side/action normalization dead code, and the fence-recovery whitespace-comparison bug in `client.py`. One item from the prior review (IN-01, ticker casing on the error annotation path) remains unresolved and is carried forward.
 
 ## Warnings
 
-### WR-01: Chat history hydrate can race with an early `sendMessage()` and wipe the just-sent exchange from view
+### WR-01: A failed early `sendMessage()` permanently blocks the mount-time chat history hydrate for the rest of the session
 
-**File:** `frontend/lib/chatStore.tsx:56-104`
-**Issue:** The mount-only hydrate effect (lines 56-73) fetches `GET /api/chat` and, on success, unconditionally calls `setMessages(history)` — overwriting whatever is currently in state. `sendMessage()` (lines 75-104) can run concurrently: it optimistically appends a user message immediately (line 90) and, once the POST resolves, appends the assistant reply (line 104). If a user submits a message quickly after page load — plausible on a slow network or a fast typist against a slow `GET /api/chat` response — the hydrate fetch can resolve *after* `sendMessage()` has already updated `messages`, and its `setMessages(history)` call will clobber the in-flight/completed send with a stale snapshot from before the new exchange existed. The sent message is still safely persisted server-side (so a page reload recovers it), but it visibly disappears from the current session's chat panel, which reads as data loss to the user.
-**Fix:** Guard the hydrate `setMessages` call so it never overwrites state once a send has started, e.g. track a `hasSentRef` (or compare message counts) and skip the hydrate's `setMessages(history)` if a send is in flight or has already completed:
-```javascript
-useEffect(() => {
-  let cancelled = false;
-  (async () => {
-    try {
-      const { messages: history } = await fetchChatHistory();
-      if (cancelled || hasSentRef.current) return; // don't clobber a send that already started
-      setMessages(history);
-      setHydrateError(null);
-    } catch { /* ... */ }
-  })();
-  return () => { cancelled = true; };
-}, []);
+**File:** `frontend/lib/chatStore.tsx:56, 68, 72, 124-133`
+**Issue:** The WR-01 fix from the prior review added `hasSentRef`, set to `true` synchronously at the very start of `sendMessage()` (line 85), and checked by the hydrate effect before it ever calls `setMessages(history)` (lines 68 and 72). This correctly protects a *successful* send from being clobbered by a slow, still-in-flight `GET /api/chat`. But the guard is unconditional and permanent — it is never cleared even when the send itself fails:
+
+```js
+const hasSentRef = useRef(false);
+...
+async function sendMessage(text: string): Promise<boolean> {
+  if (isSendingRef.current) return false;
+  isSendingRef.current = true;
+  hasSentRef.current = true;          // armed before any await, unconditionally
+  ...
+  try {
+    const response = await postChatMessage({ message: trimmed });
+    ...
+    return true;
+  } catch (e) {
+    setSendError(...);
+    setMessages((prev) => (prev ?? []).filter((m) => m.id !== clientId));  // rollback
+    return false;                      // hasSentRef.current is left `true`
+  } finally { ... }
+}
 ```
 
-### WR-02: `get_chat_response()`'s real (non-mock) LLM failure path is untested
+Sequence that loses real history for the rest of the session: page mounts, the `GET /api/chat` hydrate fetch is still in flight, the user immediately sends a message before it resolves, and that `POST /api/chat` fails (network blip, backend momentarily unreachable, rate limit). The catch block correctly rolls back the optimistic user message, but `hasSentRef.current` stays `true`. When the still-pending `GET /api/chat` later resolves with the user's real prior conversation, the hydrate effect's `if (cancelled || hasSentRef.current) return;` guard silently discards it. The panel is left showing an empty/truncated conversation for the rest of the session even though the real history exists server-side and the fetch that would have loaded it actually succeeded — only a full page reload recovers it. This is exactly the class of problem WR-01 was fixing, just on the failure branch instead of the success branch.
 
-**File:** `backend/app/llm/client.py:185-198`
-**Issue:** `get_chat_response()` only has two tested branches: `is_mock_mode() == True` (via route tests) and `parse_llm_response()`'s malformed-JSON fallback (`backend/tests/llm/test_client.py`). The `try/except Exception` branch around `_call_llm_structured()` (lines 185-196) — which is what actually protects `POST /api/chat` from ever 500ing when OpenRouter is unreachable, rate-limited, or returns something `acompletion` chokes on — has zero test coverage anywhere in `backend/tests/llm/` or `backend/tests/routes/test_chat.py`. This is the production reliability path PLAN.md §9 relies on ("never letting an exception reach the route"), and it currently ships unverified.
-**Fix:** Add a test that monkeypatches `acompletion` (or `_call_llm_structured`) to raise, with `LLM_MOCK` unset/false, and asserts `get_chat_response()` returns the fallback message with empty `trades`/`watchlist_changes` rather than propagating.
+**Fix:** Only keep the guard armed when there is actually newer, send-produced state to protect. On failure there is none (the rollback returns `messages` to essentially its pre-send shape), so release the guard:
+```js
+} catch (e) {
+  setSendError(...);
+  setMessages((prev) => (prev ?? []).filter((m) => m.id !== clientId));
+  hasSentRef.current = false; // nothing newer to protect; let a still-pending hydrate land
+  return false;
+}
+```
 
-### WR-03: Missing negative-path test coverage in `execute_llm_actions()` for watchlist changes
+### WR-02: Case-sensitive side/action validation makes the `.lower()` normalization in `execute_llm_actions()` dead code
 
-**File:** `backend/tests/llm/test_actions.py:1-99`
-**Issue:** This file only exercises the trade half of `execute_llm_actions()` (bad-quantity annotation, duplicate-item non-collapsing). There is no unit test at all for the watchlist-change half — neither the happy path, the `_validate_watchlist_item()` rejection path, nor the unknown-ticker rejection path (`market_source.is_valid_ticker` check at `actions.py:147-156`) is covered at this layer. This gap is what let CR-01 ship unnoticed.
-**Fix:** Mirror the trade tests with watchlist equivalents: one bad item + one good item in the same response, duplicate watchlist items not collapsed, and (once CR-01 is fixed) a no-op add/remove correctly annotated as an error.
+**File:** `backend/app/llm/actions.py:66, 78, 110, 145`
+**Issue:** `_validate_trade_item()` rejects any `side` that is not exactly `"buy"` or `"sell"` (line 66: `if item.side not in ("buy", "sell")`), and `_validate_watchlist_item()` does the same for `action` (line 78: `if item.action not in ("add", "remove")`) — both checks run against the LLM's raw, unnormalized string. Only *after* an item passes validation does `execute_llm_actions()` lower-case it (line 110: `side = item.side.lower()`; line 145: `action = change.action.lower()`). Because validation already requires an exact lowercase match, these `.lower()` calls can never actually change anything that reaches them — any response where the model emits `"Buy"`, `"BUY"`, `"Sell"`, `"Add"`, or `"Remove"` is rejected with an `error` annotation ("Invalid side: 'Buy'") one line before the normalization that would have handled it correctly ever runs.
+
+This is a real robustness gap, not just cosmetic: `LlmTradeItem.side` / `LlmWatchlistChange.action` are declared as plain `str` in `backend/app/llm/schema.py` specifically so a single malformed item doesn't destroy the whole structured-output parse — the schema's own docstring says validation is deliberately deferred to this module. But nothing in `client.py`'s `SYSTEM_PROMPT` tells the model the exact required casing, and the JSON-schema sent via `response_format` for a bare `str` field carries no enum constraint, so a differently-cased but semantically correct trade or watchlist request from the model is plausible and will be spuriously rejected. `execute_trade()` (`backend/app/portfolio/service.py:170`) has the identical case-sensitive guard, so normalizing case *before* validating would still be fully safe — the downstream function is not the reason validation is case-sensitive here.
+
+**Fix:** Validate against the normalized value instead of the raw one, and reuse it:
+```python
+def _validate_trade_item(item: LlmTradeItem) -> str | None:
+    if not item.ticker.strip():
+        return "Invalid ticker: empty"
+    if item.side.strip().lower() not in ("buy", "sell"):
+        return f"Invalid side: {item.side!r}"
+    ...
+```
+and likewise for `_validate_watchlist_item()`'s `action` check, so `"Buy"`/`"ADD"`/etc. validate and execute correctly instead of being rejected one line before the normalization meant to handle them.
+
+### WR-03: `parse_llm_response()`'s fence-recovery retry runs even when no code fence was present, contradicting its own documented "only if it differs" invariant
+
+**File:** `backend/app/llm/client.py:99-106, 277-278`
+**Issue:** `_strip_code_fence()` is supposed to signal "no fence found" by returning the input unchanged, so the caller can compare against the *trimmed* input to decide whether a retry is worthwhile:
+```python
+def _strip_code_fence(text: str) -> str:
+    match = _CODE_FENCE_RE.match(text.strip())
+    return match.group(1) if match else text   # returns raw `text`, not `text.strip()`, on no-match
+```
+```python
+stripped = _strip_code_fence(raw)
+if stripped != raw.strip():          # compares raw-on-no-match against raw.strip()
+    try:
+        return ChatResponseSchema.model_validate_json(stripped)
+    except (ValidationError, json.JSONDecodeError, ValueError):
+        pass
+```
+When there is no fence, `_strip_code_fence()` returns `text` unmodified (not `text.strip()`). If `raw` has any leading/trailing whitespace, `stripped` (== `raw`) is then compared against `raw.strip()`, and the two differ purely because of that whitespace — `if stripped != raw.strip()` is spuriously `True` even though no fence-stripping happened. This triggers a second `ChatResponseSchema.model_validate_json(stripped)` call with `stripped == raw`, i.e. byte-for-byte the same input already tried and already failed on line 275. It is harmless in effect (the retry is guaranteed to fail identically, since JSON parsing already tolerates surrounding whitespace), but it is dead, wasted work that directly contradicts the module's own documented threat mitigation (T-03-26: "The retry only runs when the stripped text actually differs from the input, so a text that strips to itself terminates immediately") and the docstring's claim that the retry only fires "only if it actually differs from the trimmed input." Verified directly:
+```python
+>>> _strip_code_fence("  I think you should buy Apple.  ") != "  I think you should buy Apple.  ".strip()
+True   # no fence present, yet the "differs" check fires
+```
+**Fix:** Have `_strip_code_fence()` return the trimmed text (not the raw input) on a no-match, so the comparison is meaningful:
+```python
+def _strip_code_fence(text: str) -> str:
+    trimmed = text.strip()
+    match = _CODE_FENCE_RE.match(trimmed)
+    return match.group(1) if match else trimmed
+```
+With that change, `stripped != raw.strip()` is `False` whenever no fence was present, and the redundant retry is skipped as intended.
 
 ## Info
 
-### IN-01: Ticker casing/whitespace inconsistent between error and success annotations
+### IN-01 (carried forward, still unresolved): Ticker casing/whitespace inconsistent between error and success annotations
 
-**File:** `backend/app/llm/actions.py:94-107` (trades), `130-142` (watchlist)
-**Issue:** On the validation-error path, `AnnotatedTrade.ticker` / `AnnotatedWatchlistChange.ticker` are set to `item.ticker` / `change.ticker` verbatim (whatever casing/whitespace the LLM produced), while the success path normalizes with `.strip().upper()` before constructing the annotation. A user could see a badge reading "✕ buy 5 aapl" for a rejected trade next to "✓ buy 5 AAPL" for an accepted one in the same response, purely due to this inconsistency rather than anything meaningful about the two trades.
-**Fix:** Normalize the ticker (`.strip().upper()`) before building the error annotation too, e.g. compute `normalized_ticker = item.ticker.strip().upper()` up front and use it in both branches.
+**File:** `backend/app/llm/actions.py:99` (trades), `~136` (watchlist)
+**Issue:** This was flagged in the prior review (IN-01) and has not been addressed in this pass. On the validation-error path, `AnnotatedTrade.ticker` / `AnnotatedWatchlistChange.ticker` are still built from `item.ticker` / `change.ticker` verbatim — whatever casing/whitespace the model produced — while the success path normalizes with `.strip().upper()` (lines 109, 144) before constructing the annotation. A user can still see a badge reading e.g. "✕ buy 5 aapl" for a rejected trade next to "✓ buy 5 AAPL" for an accepted one in the same response, purely from this inconsistency.
+**Fix:** Compute `normalized_ticker = item.ticker.strip().upper()` up front in each loop body and use it in both the error and success branches.
 
-### IN-02: Unstripped message sent to the LLM while the stripped version is persisted
+### IN-02: The collapsed-rail "unread" indicator is purely visual and not exposed to assistive technology
 
-**File:** `backend/app/routes/chat.py:147-166`
-**Issue:** `get_chat_response(..., user_message=body.message, ...)` passes the raw (potentially whitespace-padded) request body, but `insert_message("user", body.message.strip(), None)` persists the stripped version. The text sent to the model for this turn and the text later replayed as conversation history for future turns are therefore not byte-identical, purely due to incidental leading/trailing whitespace.
-**Fix:** Strip once and reuse the same value for both calls:
-```python
-message = body.message.strip()
-llm_response = await get_chat_response(..., user_message=message)
-...
-await insert_message("user", message, None)
-```
+**File:** `frontend/components/chat/ChatPanel.tsx:76-105`
+**Issue:** When the panel is collapsed and new messages arrive, `hasUnread` renders a small yellow dot (`aria-hidden="true"`, lines 100-104) as the only signal that there's something new. The rail button's accessible name stays the static `"Expand chat panel"` (line 80) regardless of `hasUnread` — a screen reader user gets no equivalent of the sighted "there's a new message" cue the dot provides. Given this same component already reasons carefully about contrast ratios for the rail's border/background (lines 82-86), the purely-visual unread cue reads as a gap rather than a deliberate omission.
+**Fix:** Fold the unread state into the accessible name, e.g. `aria-label={hasUnread ? "Expand chat panel (new message)" : "Expand chat panel"}`.
 
 ---
 
-_Reviewed: 2026-09-18T00:00:00Z_
+_Reviewed: 2026-09-21T00:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
