@@ -15,6 +15,7 @@
  *   (ChangeDirection)
  * - backend/app/routes/chat.py (ChatRequest, ChatResponse, ChatMessageResponse,
  *   ChatHistoryResponse, TradeActionResponse, WatchlistActionResponse)
+ * - backend/app/routes/portfolio.py (SnapshotResponse, PortfolioHistoryResponse)
  */
 
 export type PositionView = {
@@ -33,6 +34,15 @@ export type PortfolioResponse = {
   positions_value: number;
   total_value: number;
   total_unrealized_pnl: number;
+};
+
+export type SnapshotResponse = {
+  total_value: number;
+  recorded_at: string;
+};
+
+export type PortfolioHistoryResponse = {
+  snapshots: SnapshotResponse[];
 };
 
 export type TradeRequest = {

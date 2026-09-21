@@ -8,6 +8,7 @@ import type {
   ChatMessage,
   ChatRequest,
   ChatResponse,
+  PortfolioHistoryResponse,
   PortfolioResponse,
   TradeRequest,
   TradeResponse,
@@ -20,6 +21,14 @@ export async function fetchPortfolio(): Promise<PortfolioResponse> {
   const res = await fetch(`${BASE}/api/portfolio`);
   if (!res.ok) {
     throw new Error(`GET /api/portfolio failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function fetchPortfolioHistory(): Promise<PortfolioHistoryResponse> {
+  const res = await fetch(`${BASE}/api/portfolio/history`);
+  if (!res.ok) {
+    throw new Error(`GET /api/portfolio/history failed: ${res.status}`);
   }
   return res.json();
 }

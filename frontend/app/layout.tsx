@@ -4,6 +4,7 @@ import "./globals.css";
 import { PriceStoreProvider } from "@/lib/priceStore";
 import { PortfolioProvider } from "@/lib/portfolioStore";
 import { ChatProvider } from "@/lib/chatStore";
+import { PortfolioHistoryProvider } from "@/lib/portfolioHistoryStore";
 import { ChartSelectionProvider } from "@/lib/chartSelection";
 
 const geistSans = Geist({
@@ -38,12 +39,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           must render below that provider or the hook throws.
           ChartSelectionProvider holds only synchronous client state and
           depends on none of the three above it, so it nests innermost and
-          the existing load-bearing orderings are untouched. */}
+          the existing load-bearing orderings are untouched.
+          PortfolioHistoryProvider is mounted once so exactly one 30-second
+          history poll runs however many components read it. */}
       <body className="min-h-full flex flex-col bg-terminal-bg text-terminal-text">
         <PriceStoreProvider>
           <PortfolioProvider>
             <ChatProvider>
-              <ChartSelectionProvider>{children}</ChartSelectionProvider>
+              <PortfolioHistoryProvider>
+                <ChartSelectionProvider>{children}</ChartSelectionProvider>
+              </PortfolioHistoryProvider>
             </ChatProvider>
           </PortfolioProvider>
         </PriceStoreProvider>
