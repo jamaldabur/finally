@@ -130,6 +130,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       // Roll the optimistic user message back out so a retry can't
       // duplicate it — the input keeps the typed text for the user.
       setMessages((prev) => (prev ?? []).filter((m) => m.id !== clientId));
+      // The send failed, so there is no newer send-produced state left to
+      // protect (the rollback above returns messages to their pre-send
+      // shape) — release the guard so a still-pending mount hydrate can
+      // land its real history instead of being silently discarded (WR-01).
+      hasSentRef.current = false;
       return false;
     } finally {
       setIsSending(false);
