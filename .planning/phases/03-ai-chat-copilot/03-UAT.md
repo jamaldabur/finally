@@ -18,15 +18,13 @@ result: pass
 
 ### 2. Live (non-mock) LLM chat sanity check for G-03-3
 expected: Matches 03-06-PLAN.md Task 2's human-check exactly. Send "sell 2 AAPL" several times against the real OPENROUTER_API_KEY path (the free router picks a different backing model per call) and confirm every reply is either coherent prose or one of the two fixed fallback sentences, never raw JSON/a code fence/leaked instruction text; confirm an executed trade shows a green badge with a fill price and moves the header cash/positions table; check the uvicorn log and confirm any fallback reply has a corresponding warning/error log line.
-result: issue
-reported: "trying to buy 1 GOOGL i get {\"action\": \"BUY\", \"symbol\": \"GOOGL\", \"quantity\": 1, \"price\": 89.12, \"estimated_cost\": 89.12, \"cash_after\": 9252.56, \"status\": \"REQUESTED\"} — raw JSON rendered as the chat message, not coherent prose, not a badge, wrong schema shape entirely (action/symbol/price/cash_after/status — none of these are our LlmTradeItem/ChatResponse fields)"
-severity: blocker
+result: pass
+note: "Initial report (raw JSON on buy) traced to a stale backend process (G-03-7, see Gaps) — no code fix needed. User confirmed working after backend restart."
 
 ### 3. Live (non-mock) LLM sign-convention and watchlist-integrity sanity check for G-03-5/G-03-6
 expected: Matches 03-08-PLAN.md Task 2's human-check exactly. With LLM_MOCK unset and a real OPENROUTER_API_KEY, send "sell 2 AAPL" at least six times (holding a position of that size), and confirm every turn either executes with a green badge/positive quantity/fill price and moves the header cash and positions table, or fails for an honest reason (assistant decline or one of the two fixed fallback sentences) — never a red "Invalid quantity" badge with a negative number. Then ask the assistant to add a ticker not currently on the watchlist and confirm it appears (count before/after); repeat with a removal. Check the uvicorn log for a warning/error line on any fallback turn.
-result: issue
-reported: "trying to sell 2 AAPL i get \"Requesting sale of 2 AAPL shares at the current price of $221.21. Estimated proceeds: $442.42. ✕ SELL 2 AAPL — Invalid side: 'SELL'\" — the model returned side as uppercase 'SELL' and it was rejected outright instead of being normalized to lowercase"
-severity: major
+result: pass
+note: "Initial report (Invalid side: 'SELL') traced to the same stale backend process (G-03-8, see Gaps) — no code fix needed. User confirmed working after backend restart."
 
 ### 4. Judgment-tier prohibitions across all eight plans
 expected: |
@@ -47,8 +45,8 @@ result: pass
 ## Summary
 
 total: 4
-passed: 2
-issues: 2
+passed: 4
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
