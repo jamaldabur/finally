@@ -116,7 +116,7 @@ Additional rows this phase needs (chat has interaction copy the template's five 
 | Loading indicator (waiting for LLM response) | No text label — three animated dots in an assistant-styled bubble; `aria-live="polite"` screen-reader-only text: "FinAlly is thinking" |
 | Loading indicator (history hydrating on mount) | Loading conversation… (matches existing `Loading watchlist…` / `Loading positions…` ellipsis pattern exactly) |
 | Scroll-to-latest pill (user has scrolled up during new activity) | New messages ↓ |
-| Collapsed rail label | Chat (vertical/rotated text on the 48px rail) |
+| Collapsed rail label | Chat (horizontal, upright text on the 48px rail — fits the 46px inner width at the existing 12px/500 Label role, measuring ~25px with ~10px of clearance on each side) |
 | Action badge — executed | `✓ {SIDE} {qty} {TICKER} @ {price}` for trades (e.g. `✓ BUY 10 AAPL @ $190.32`); `✓ Added {TICKER} to watchlist` / `✓ Removed {TICKER} from watchlist` for watchlist changes |
 | Action badge — error | `✕ {SIDE} {qty} {TICKER} — {reason}` / `✕ Add {TICKER} — {reason}` where `{reason}` is the **verbatim** string returned by `execute_trade()` / `add_watchlist_ticker()` / `remove_watchlist_ticker()` — never a rephrased or generic substitute. This mirrors the existing D-03 convention already locked in `frontend/lib/api.ts`'s `postTrade()` ("the backend's own rejection text... is the message the user must see, never a generic substitute"). |
 
@@ -183,7 +183,7 @@ applicable combination is resolved: 23 explicit, 3 backstop, 7 dismissed as not-
 
 **Dock placement:** Third column, right of the existing two-column body (`Header` stays full-width on top; below it, `flex gap-6 p-6` currently holds a `w-80` left column and a `flex-1` main column). The chat panel becomes a third flex child on the right:
 - Expanded: `w-80` (320px) — matches the left watchlist column's width exactly, keeping the layout visually symmetric (left rail / center / right rail).
-- Collapsed: `w-12` (48px) vertical rail carrying the panel-shell treatment — `rounded-lg border border-terminal-text-muted bg-terminal-panel` — rather than a bare `border-l`, so its edge clears the WCAG 1.4.11 3:1 non-text-contrast floor (see Amendments and the Color table's Rail edge row). Contains, top to bottom: an `EXPAND_GLYPH` (`«`) chevron in the full text color pointing toward where the panel will open, the rotated "Chat" label, and, when applicable, a small `accent-yellow` unread-indicator dot. Carries a hover state that visibly lifts both the surface and the edge, and `aria-expanded={false}`. Clicking anywhere on the rail expands the panel.
+- Collapsed: full-column height — the rail spans the same vertical extent as the main column beside it, and it gets that height from the body row's default item stretch rather than from any height declared on the chat column itself; the chat column must therefore declare no height of its own, because declaring one both resolves against a row with no specified height and switches the stretch off. At `w-12` (48px) wide, the rail carries the panel-shell treatment — `rounded-lg border border-terminal-text-muted bg-terminal-panel` — rather than a bare `border-l`, so its edge clears the WCAG 1.4.11 3:1 non-text-contrast floor (see Amendments and the Color table's Rail edge row). Contains, top to bottom: an `EXPAND_GLYPH` (`«`) chevron in the full text color pointing toward where the panel will open, the "Chat" label read upright and horizontal — sharing its reading orientation with the chevron above it — and, when applicable, a small `accent-yellow` unread-indicator dot. Carries a hover state that visibly lifts both the surface and the edge, and `aria-expanded={false}`. Clicking anywhere on the rail expands the panel.
 
 **Expanded panel structure (top to bottom), each using the established panel shell `rounded-lg border border-terminal-border bg-terminal-panel` (or borderless when nested full-height, executor's call to match the exact left/main column treatment):**
 1. Header row: `flex items-center justify-between`, "AI Assistant" heading (Heading role, 14/500) on the left, and a real collapse **button** on the right — padded (horizontal and vertical padding, not zero), bordered (`border border-terminal-border rounded`), with a `min-h-6 min-w-6` floor so its box clears the WCAG 2.5.8 24x24 minimum regardless of how its label renders — carrying the "Collapse" text plus a `COLLAPSE_GLYPH` (`»`) chevron and `aria-expanded={true}`. Mirrors `WatchlistPanel`'s existing header row layout for placement, but the control itself is corrected from the original bare text span (Amendments): it must carry real chrome and must not rely solely on the same dim `text-terminal-text-muted` color as the heading beside it to read as interactive.
@@ -242,6 +242,29 @@ the UI checker's call, not this gap closure's.
 
 These amendments also close G-03-1 — the same underlying defect, reported first in general
 terms ("the collapse of the AI assistant isn't working well") before G-03-2 pinpointed it.
+
+The following two entries come from a second round of UAT on this same phase (G-03-4), not a
+continuation of the round that produced amendments 1-5 above.
+
+6. **Layout & Interaction Contract — Dock placement collapsed bullet (rail height).** Was:
+   silent about how tall the collapsed rail is — the bullet described its width, its shell
+   treatment, its contents, and its hover/aria states, but never its height. Now: the bullet
+   opens by stating explicitly that the collapsed rail is full-column height, spanning the same
+   vertical extent as the main column beside it via the body row's default item stretch, and
+   that the chat column must declare no height of its own to receive it. Unlike amendments 1-5,
+   the primary defect this closes did NOT originate in this document — it was a component layout
+   bug (`h-full` on `ChatPanel.tsx`'s wrapper) present since Plan 03-03. What this document
+   contributed was the silence itself: with no height statement to check the implementation
+   against, a 48x59px chip passed review undetected. Closes gap: G-03-4 (missing item 1).
+
+7. **Copywriting Contract's rail-label row, and the Dock placement bullet's label description.**
+   Was: both described the "Chat" label as vertical/rotated text. Now: both describe it as
+   horizontal, upright text sharing its reading orientation with the chevron above it. This needs
+   no width or spacing change: the word measures ~25.05px at the existing 12px/500 Label role
+   against the rail's 46px inner width, leaving roughly 10px of clearance on each side — the same
+   fit it had rotated, since vertical and horizontal metrics are identical to two decimals in this
+   font stack. The Spacing Scale's 48px rail-width row and its Exceptions paragraph are therefore
+   unchanged; do not widen the rail on account of this entry. Closes gap: G-03-4 (missing item 2).
 
 ---
 
