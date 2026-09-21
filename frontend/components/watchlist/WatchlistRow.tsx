@@ -10,6 +10,7 @@
  */
 
 import { usePriceStore } from "@/lib/priceStore";
+import { Sparkline } from "@/components/charts/Sparkline";
 import { PriceCell } from "@/components/ui/PriceCell";
 import { formatPercent } from "@/lib/format";
 import type { WatchlistEntry } from "@/lib/types";
@@ -30,6 +31,9 @@ export function WatchlistRow({ entry }: { entry: WatchlistEntry }) {
   return (
     <div className="flex items-center justify-between border-b border-terminal-border py-1.5 text-sm last:border-b-0">
       <span className="font-medium text-terminal-text">{entry.ticker}</span>
+      <div className="mx-3 h-5 min-w-0 flex-1">
+        <Sparkline ticker={entry.ticker} />
+      </div>
       <div className="flex gap-4 tabular-nums">
         <PriceCell price={price} direction={direction} />
         <span

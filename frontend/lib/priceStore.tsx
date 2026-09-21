@@ -41,11 +41,19 @@ import type { PriceTick, PricesEvent } from "./types";
 // (D-06 / A2 in 02-RESEARCH.md — a starting point, not a locked value).
 const DISCONNECT_GRACE_MS = 5000;
 
+// Per-ticker cap on the sparkline/chart history buffer. The buffer is
+// ephemeral and per-session (rebuilt on every page load), so it is bounded to
+// keep a long-running tab from growing memory without limit (UI-SPEC).
+const PRICE_HISTORY_LIMIT = 500;
+
 export type ConnectionStatus = "connected" | "reconnecting" | "disconnected";
+
+export type PricePoint = { timestamp: string; price: number };
 
 type PriceStoreValue = {
   prices: Map<string, PriceTick>;
   firstPrices: Map<string, number>;
+  priceHistory: Map<string, PricePoint[]>;
   status: ConnectionStatus;
 };
 
@@ -54,6 +62,9 @@ const PriceStoreContext = createContext<PriceStoreValue | null>(null);
 export function PriceStoreProvider({ children }: { children: ReactNode }) {
   const [prices, setPrices] = useState<Map<string, PriceTick>>(new Map());
   const [firstPrices, setFirstPrices] = useState<Map<string, number>>(
+    new Map(),
+  );
+  const [priceHistory, setPriceHistory] = useState<Map<string, PricePoint[]>>(
     new Map(),
   );
   const [status, setStatus] = useState<ConnectionStatus>("reconnecting");
@@ -88,6 +99,31 @@ export function PriceStoreProvider({ children }: { children: ReactNode }) {
         }
         return changed ? next : prev;
       });
+      setPriceHistory((prev) => {
+        let changed = false;
+        const next = new Map(prev);
+        for (const tick of payload.ticks) {
+          const series = next.get(tick.ticker) ?? [];
+          const last = series[series.length - 1];
+          // Append only on a real change versus the last recorded point.
+          // The tick's own prior-price field is unusable here.
+          // The cache holds it steady across unchanged heartbeats.
+          if (last === undefined || last.price !== tick.price) {
+            const appended = [
+              ...series,
+              { timestamp: tick.timestamp, price: tick.price },
+            ];
+            next.set(
+              tick.ticker,
+              appended.length > PRICE_HISTORY_LIMIT
+                ? appended.slice(appended.length - PRICE_HISTORY_LIMIT)
+                : appended,
+            );
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
       setStatus("connected");
       clearGraceTimer();
     });
@@ -114,7 +150,7 @@ export function PriceStoreProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <PriceStoreContext.Provider value={{ prices, firstPrices, status }}>
+    <PriceStoreContext.Provider value={{ prices, firstPrices, priceHistory, status }}>
       {children}
     </PriceStoreContext.Provider>
   );
