@@ -57,20 +57,30 @@ blocked: 0
 
 - gap_id: G-03-7
   truth: "Matches 03-06-PLAN.md Task 2's human-check exactly — the LLM reply is coherent prose or a fixed fallback sentence, never raw JSON, when the assistant proposes a trade"
-  status: failed
-  reason: "User reported: trying to buy 1 GOOGL produced a raw JSON blob as the chat message text — {\"action\": \"BUY\", \"symbol\": \"GOOGL\", \"quantity\": 1, \"price\": 89.12, \"estimated_cost\": 89.12, \"cash_after\": 9252.56, \"status\": \"REQUESTED\"} — a completely different shape from our LlmTradeItem/ChatResponse schema (action/symbol/price/cash_after/status are not our fields), rendered directly as message text instead of prose + an action badge"
+  status: resolved
+  resolved_by: "diagnosis (no code change) — .planning/debug/sell-side-case-sensitivity.md"
+  resolved_at: "2026-09-21"
+  reason: "User reported: trying to buy 1 GOOGL produced a raw JSON blob as the chat message text — {\"action\": \"BUY\", \"symbol\": \"GOOGL\", \"quantity\": 1, \"price\": 89.12, \"estimated_cost\": 89.12, \"cash_after\": 9252.56, \"status\": \"REQUESTED\"} — a completely different shape from our LlmTradeItem/ChatResponse schema"
   severity: blocker
   test: 2
-  artifacts: []  # Filled by diagnosis
-  missing: []    # Filled by diagnosis
-  debug_session: ""  # Filled by diagnosis
+  root_cause: "Same stale-runtime event as G-03-8 (23 seconds apart in chat_messages, same uvicorn process). The backend serving the request was started 2026-09-20 20:49:50, ~45 hours before this UAT round, without --reload, and predates commit 4d0999c (03-06's fix, landed 80 min after that process started) which made parse_llm_response() incapable of ever assigning raw model text to `message` — it returns PARSE_FALLBACK_MESSAGE instead. At HEAD the code is correct; no fix plan needed."
+  artifacts: []
+  missing:
+    - "Restart the backend (this session did so) and retest — not a code fix"
+  debug_session: ".planning/debug/sell-side-case-sensitivity.md"
 
 - gap_id: G-03-8
   truth: "Matches 03-08-PLAN.md Task 2's human-check exactly — a sell request executes cleanly against the real router, never rejected on a normalization technicality"
-  status: failed
+  status: resolved
+  resolved_by: "diagnosis (no code change) — .planning/debug/sell-side-case-sensitivity.md"
+  resolved_at: "2026-09-21"
   reason: "User reported: trying to sell 2 AAPL produced a red error badge — \"Requesting sale of 2 AAPL shares at the current price of $221.21. Estimated proceeds: $442.42. ✕ SELL 2 AAPL — Invalid side: 'SELL'\" — the model returned side as uppercase 'SELL', which was rejected outright instead of case-normalized"
   severity: major
   test: 3
-  artifacts: []  # Filled by diagnosis
-  missing: []    # Filled by diagnosis
-  debug_session: ""  # Filled by diagnosis
+  root_cause: "Stale backend process (PID 11468), running since 2026-09-20 20:49:50 without --reload, ~45 hours old — predates commit b2187b2 (WR-02 fix: normalize case before validating trade side/watchlist action) and 03-08's a06d51d. Empirically confirmed: at HEAD, LlmTradeItem(side='SELL'/' SELL '/'Sell') all normalize to 'sell' and validate cleanly via actions.py:102 (side = item.side.strip().lower()) — the exact mirror of the action-field handling; the suspected validator/normalizer asymmetry does not exist. The pre-b2187b2 validator reproduces the reported string byte-for-byte when run against side='SELL'. No source defect; no fix plan needed."
+  artifacts:
+    - path: "backend/app/llm/actions.py"
+      issue: "None — verified correct at HEAD (side normalization at line 102 mirrors action normalization)"
+  missing:
+    - "Restart the backend (this session did so) and retest — not a code fix. The free router serves a different backing model per call, so test 3 still needs several repetitions per its original expected steps."
+  debug_session: ".planning/debug/sell-side-case-sensitivity.md"
