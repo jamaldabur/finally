@@ -20,7 +20,7 @@ created: "2026-09-17"
 | Tool | none |
 | Preset | not applicable |
 | Component library | none — hand-rolled Tailwind v4 components (established Phase 2 convention) |
-| Icon library | none — Phase 2 uses text/color/glyph indicators, not an icon set (`ConnectionDot` is a colored dot + text label, no icons). Phase 3 continues this: action badges use plain Unicode glyphs (`✓` / `✕`), never an icon import. |
+| Icon library | none — Phase 2 uses text/color/glyph indicators, not an icon set (`ConnectionDot` is a colored dot + text label, no icons). Phase 3 continues this: action badges use plain Unicode glyphs (`✓` / `✕`), never an icon import. Plain Unicode glyphs are equally sanctioned for directional affordances, not only badges: the chat panel's collapse control uses a Unicode chevron pair (`«` to expand, `»` to collapse) for exactly this purpose. Importing an icon-library package (e.g. lucide-react, heroicons, react-icons, @radix-ui icons) remains banned regardless of purpose. |
 | Font | System sans-serif stack (`ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif` — `frontend/app/globals.css` body rule) for prose; `--font-numeric` monospace stack for any tabular/numeric text inside chat (e.g. price figures quoted in action badges) |
 
 **No shadcn init this phase.** `components.json` does not exist anywhere in the repo, and Phase 2 already shipped a complete, consistent hand-rolled Tailwind v4 component set (`ConnectionDot`, `PriceCell`, `TradeBar`, `Header`, `WatchlistPanel`, `PositionsTable`) with no component library underneath. Introducing shadcn for one phase's chat panel would fork the visual system rather than extend it, contradicting this phase's explicit "extend, don't redesign" mandate. `Tool: none` is the correct, deliberate call, not an oversight — Component Inventory and Registry Safety sections are omitted below per template instructions for projects with no design system.
@@ -41,7 +41,7 @@ Declared values (must be multiples of 4) — inherited verbatim from Phase 2, al
 | 2xl | 48px | Collapsed rail width (`w-12`) |
 | 3xl | 64px | Not used this phase |
 
-Exceptions: none. The collapse/expand toggle is a full 48px-wide rail button (not an icon-only mini-target), so no reduced-touch-target exception is needed.
+Exceptions: The expand direction — the collapsed rail, clicking anywhere on it — is a full 48px-wide rail button, well clear of any touch-target minimum. The collapse direction is different: it is a distinct in-header control, not the rail, and must itself meet a 24x24 CSS px minimum hit target per WCAG 2.5.8, achieved via real horizontal/vertical padding plus a `min-h-6 min-w-6` floor rather than relying on its text label's implicit box. (Corrected — see Amendments; the collapse-direction control previously shipped chromeless at roughly 50x16px.)
 
 ---
 
@@ -86,12 +86,14 @@ Additional semantic rows this phase needs, beyond the template's fixed four (pre
 | Success | `#4ade80` (`--color-gain`) | "Executed" action outcome badge — reuses the same green already meaning "gain" throughout the watchlist flash and P&L figures, so "trade succeeded" reads consistently with "price went up" |
 | Assistant accent | `#209dd7` (`--color-accent-blue`) | **First use of this token in the codebase.** Assistant message left-border accent (`border-l-2 border-accent-blue`), and the color of the "AI is thinking" loading-dots indicator. Distinguishes assistant identity from the user's own messages without introducing a fourth accent hue. |
 | Submit action | `#753991` (`--color-accent-purple`) | Chat input's Send button — reuses PLAN.md §2's explicit rule ("Purple Secondary: submit buttons") verbatim, identical to the existing Buy/Sell buttons in `TradeBar` |
+| Rail edge (non-text UI border) | `#8b949e` (`--color-terminal-text-muted`) | Collapsed chat rail's identifying border/edge — measures ~6.2:1 against the page background `#0d1117`, clearing the WCAG 1.4.11 3:1 floor for non-text UI components. Supersedes the original `border-terminal-border` (`#30363d`, measured 1.551:1) and the panel fill alone (`#1a1a2e`, measured 1.109:1), both of which failed that floor in the shipped implementation — see Amendments. |
 
 **Accent reserved for** (never "all interactive elements"):
 - **Yellow** — brand wordmark, "Simulated" badge, collapsed-rail unread indicator dot. Nothing else.
 - **Purple** — Buy/Sell buttons (existing) and the chat Send button (new). No other buttons in the app use this color; do not extend it to the collapse-toggle or "jump to bottom" pill.
 - **Blue** — assistant message border accent and the thinking-indicator dots only. Do not use blue for links, other buttons, or any watchlist/price element (blue has no meaning there today).
 - **Green/Red (gain/loss)** — reused exactly as their existing meaning (price-up/price-down, P&L sign) plus, this phase, "Executed"/"Error" action badges. Do not introduce a different green/red for any other purpose.
+- **Collapse control** — no accent hue at all, on either the rail or the header button. The rail's edge uses the muted-text token above, which is not an accent; the unread dot inside the rail stays yellow per the Yellow reservation, unchanged by this amendment.
 
 ---
 
@@ -181,10 +183,10 @@ applicable combination is resolved: 23 explicit, 3 backstop, 7 dismissed as not-
 
 **Dock placement:** Third column, right of the existing two-column body (`Header` stays full-width on top; below it, `flex gap-6 p-6` currently holds a `w-80` left column and a `flex-1` main column). The chat panel becomes a third flex child on the right:
 - Expanded: `w-80` (320px) — matches the left watchlist column's width exactly, keeping the layout visually symmetric (left rail / center / right rail).
-- Collapsed: `w-12` (48px) vertical rail, `bg-terminal-panel border-l border-terminal-border`, containing the rotated "Chat" label and, when applicable, a small `accent-yellow` unread-indicator dot. Clicking anywhere on the rail expands the panel.
+- Collapsed: `w-12` (48px) vertical rail carrying the panel-shell treatment — `rounded-lg border border-terminal-text-muted bg-terminal-panel` — rather than a bare `border-l`, so its edge clears the WCAG 1.4.11 3:1 non-text-contrast floor (see Amendments and the Color table's Rail edge row). Contains, top to bottom: an `EXPAND_GLYPH` (`«`) chevron in the full text color pointing toward where the panel will open, the rotated "Chat" label, and, when applicable, a small `accent-yellow` unread-indicator dot. Carries a hover state that visibly lifts both the surface and the edge, and `aria-expanded={false}`. Clicking anywhere on the rail expands the panel.
 
 **Expanded panel structure (top to bottom), each using the established panel shell `rounded-lg border border-terminal-border bg-terminal-panel` (or borderless when nested full-height, executor's call to match the exact left/main column treatment):**
-1. Header row: `flex items-center justify-between`, "AI Assistant" heading (Heading role, 14/500) on the left, a text-only collapse toggle (e.g. `»` glyph or the word "Collapse") on the right — mirrors `WatchlistPanel`'s existing header row layout exactly.
+1. Header row: `flex items-center justify-between`, "AI Assistant" heading (Heading role, 14/500) on the left, and a real collapse **button** on the right — padded (horizontal and vertical padding, not zero), bordered (`border border-terminal-border rounded`), with a `min-h-6 min-w-6` floor so its box clears the WCAG 2.5.8 24x24 minimum regardless of how its label renders — carrying the "Collapse" text plus a `COLLAPSE_GLYPH` (`»`) chevron and `aria-expanded={true}`. Mirrors `WatchlistPanel`'s existing header row layout for placement, but the control itself is corrected from the original bare text span (Amendments): it must carry real chrome and must not rely solely on the same dim `text-terminal-text-muted` color as the heading beside it to read as interactive.
 2. Message list: `flex-1 overflow-y-auto flex flex-col gap-3 p-4`.
    - User message: bubble aligned right, `bg-terminal-bg border border-terminal-border rounded-lg px-3 py-2 max-w-[85%]`, Body role text.
    - Assistant message: bubble aligned left, `bg-terminal-panel border-l-2 border-accent-blue rounded-lg px-3 py-2 max-w-[85%]`, Body role text. Bubble text is the LLM's `message` field **only** — never annotated with outcome text (Pitfall 3 / CHAT-04).
@@ -192,7 +194,54 @@ applicable combination is resolved: 23 explicit, 3 backstop, 7 dismissed as not-
    - Loading indicator: same left-aligned, `border-l-2 border-accent-blue` treatment as an assistant bubble, containing only the animated three-dot indicator.
 3. Input row: pinned bottom, `border-t border-terminal-border p-3 flex gap-2` — single-line `<input>` (not a `<textarea>`; matches `TradeBar`'s precedent of plain controlled inputs, no multi-line support this phase) styled identically to `TradeBar`'s inputs (`rounded border border-terminal-border bg-terminal-bg px-2 py-1 text-sm text-terminal-text`), plus the purple Send button. Enter key submits; there is no shift+Enter newline behavior.
 
+**Motion:** The width change between the collapsed and expanded states is animated, not instant. Both states render as children of one persistent wrapper element — never as two disjoint conditional-return subtrees, since CSS cannot interpolate a width across an unmount/remount — and that wrapper carries a `transition-[width]` over a short, visible duration (e.g. `duration-200 ease-out`). The animation is suppressed for users who have requested reduced motion (`motion-reduce:transition-none`), falling back to the instant change rather than to a broken layout. This paragraph is new (Amendments); the original contract specified no transition anywhere on the toggle.
+
 **No timestamps** are shown on individual messages — a deliberate scope reduction matching this app's existing minimalism (no other panel shows per-row timestamps either); revisit only if UAT surfaces a need.
+
+---
+
+## Amendments
+
+The defects UAT gaps G-03-1 and G-03-2 reported originated in this document, not in the
+executor's implementation of it — the shipped `ChatPanel.tsx` faithfully implemented every
+clause below exactly as it was originally written. This section is corrected alongside the
+code fix (Plan 03-05) so the contract and the shipped component stay in agreement; it does not
+alter the Checker Sign-Off block or the frontmatter's draft status field below, which remain
+the UI checker's call, not this gap closure's.
+
+1. **Icon rule (Design System, Icon library row).** Was: silent about directional affordances,
+   which the original implementation read as "no chevron at all." Now: explicitly states plain
+   Unicode glyphs are sanctioned for directional affordances as well as badges, naming the
+   collapse control's chevron pair. Closes gap: G-03-2 (missing item 2).
+
+2. **Touch-target claim (Spacing Scale, Exceptions).** Was: a blanket claim that the full
+   48px-wide rail button covers the whole toggle, so no reduced-touch-target exception applied
+   anywhere — true only for the expand direction, and measurably false for the collapse
+   direction. Now: states the collapse direction is a distinct in-header control requiring its
+   own 24x24 CSS px minimum per WCAG 2.5.8. Closes gap: G-03-2 (missing item 4).
+
+3. **Rail contrast (Color table).** Was: no non-text-contrast requirement recorded for the
+   collapsed rail at all; the shipped rail's fill measured 1.109:1 and its `border-l` measured
+   1.551:1 against the page background, both failing WCAG 1.4.11's 3:1 floor for non-text UI
+   components. Now: a new Rail edge row specifies the muted-text token (~6.2:1), and the
+   accent-reservation list confirms the collapse control spends no accent hue. Closes gap:
+   G-03-2 (missing item 1).
+
+4. **Layout & Interaction Contract — Dock placement and expanded-structure item 1.** Was: a
+   bare `border-l` rail with no hover state, and a chromeless text-only collapse toggle sharing
+   the heading's dim color. Now: both bullets describe a panel-shell-treated rail with a hover
+   state affecting both surface and edge, a directional chevron on each control,
+   `aria-expanded` on both, and a padded/bordered collapse button meeting the 24x24 floor.
+   Closes gap: G-03-2 (missing items 2, 3, 4).
+
+5. **Layout & Interaction Contract — new Motion paragraph.** Was: no transition or animation
+   specified anywhere for the toggle; the shipped implementation was consequently an instant
+   two-subtree DOM swap. Now: a dedicated Motion paragraph requires one persistent element with
+   an animated width transition, suppressed under reduced motion. Closes gap: G-03-2 (missing
+   item 5).
+
+These amendments also close G-03-1 — the same underlying defect, reported first in general
+terms ("the collapse of the AI assistant isn't working well") before G-03-2 pinpointed it.
 
 ---
 
