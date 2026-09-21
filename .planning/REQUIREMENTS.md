@@ -46,7 +46,7 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 - [x] **UI-02**: Each watchlist ticker shows a sparkline mini-chart accumulated from the SSE stream since page load
 - [x] **UI-03**: Clicking a ticker in the watchlist shows a larger detailed chart for it in the main chart area
 - [x] **UI-04**: Portfolio heatmap (treemap) sizes rectangles by position weight and colors/saturates by unrealized P&L%, capped at ±10%
-- [ ] **UI-05**: P&L line chart shows total portfolio value over time, sourced from `portfolio_snapshots`
+- [x] **UI-05**: P&L line chart shows total portfolio value over time, sourced from `portfolio_snapshots`
 - [x] **UI-06**: Positions table shows ticker, quantity, avg cost, current price, unrealized P&L, % change
 - [x] **UI-07**: Trade bar lets the user submit buy/sell market orders (ticker, quantity, buy button, sell button)
 - [x] **UI-08**: AI chat panel (collapsible) hydrates history on mount and shows inline trade/watchlist confirmation badges labeled success or error
@@ -129,7 +129,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | UI-02 | Phase 4 | Complete |
 | UI-03 | Phase 4 | Complete |
 | UI-04 | Phase 4 | Complete |
-| UI-05 | Phase 4 | Pending |
+| UI-05 | Phase 4 | Complete |
 | DEPLOY-01 | Phase 5 | Pending |
 | DEPLOY-02 | Phase 5 | Pending |
 | DEPLOY-03 | Phase 5 | Pending |
