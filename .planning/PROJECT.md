@@ -29,19 +29,19 @@ A user can watch live prices, trade a simulated portfolio, and have an AI copilo
 - ✓ Positions table (ticker, qty, avg cost, current price, P&L, % change), server-authoritative, live current price — Phase 2
 - ✓ Trade bar (ticker, quantity, buy/sell, instant fill, no confirmation dialog), inline backend rejection wording — Phase 2
 - ✓ Header: live portfolio value (client-recomputed, sanctioned exception), connection status dot (real onopen/onerror/readyState state machine), cash balance, "Simulated" account marker — Phase 2
+- ✓ LLM chat integration via LiteLLM → OpenRouter, structured JSON output (message + trades + watchlist_changes) — Phase 3 (model deviation: `openrouter/openrouter/free`, not the originally-specified `openrouter/openai/gpt-oss-120b` — see Key Decisions)
+- ✓ Chat auto-executes trades/watchlist changes through the same validation path as manual actions, annotates each with executed/error outcome — Phase 3
+- ✓ `execute_trade()` gains its own input validation (quantity > 0, side is exactly "buy"/"sell") instead of relying solely on the HTTP route's Pydantic layer — Phase 3 (fixed in 03-01 Task 3; originally flagged by Phase 1 code review WR-01/WR-02)
+- ✓ `GET /api/chat` (history) and `POST /api/chat` (send message, get full response) endpoints — Phase 3
+- ✓ `LLM_MOCK=true` deterministic mock mode for testing — Phase 3
+- ✓ AI chat panel (collapsible, hydrates from `GET /api/chat`, inline trade/watchlist confirmation badges) — Phase 3, closed after 3 UAT gap-closure rounds (collapse-control accessibility/motion, LLM fence-recovery/failover, action-outcome normalization, collapsed-rail full-height rendering)
 
 ### Active
 
-- [ ] LLM chat integration via LiteLLM → OpenRouter (`openrouter/openrouter/free`), structured JSON output (message + trades + watchlist_changes)
-- [ ] Chat auto-executes trades/watchlist changes through the same validation path as manual actions, annotates each with executed/error outcome
-- [ ] `execute_trade()` gains its own input validation (quantity > 0, side is exactly "buy"/"sell") instead of relying solely on the HTTP route's Pydantic layer — emerged from Phase 1 code review (01-REVIEW.md WR-01/WR-02), still unaddressed after Phase 2: a direct non-HTTP call with a negative/zero quantity can mint free cash or raise an uncaught `ZeroDivisionError` inside the portfolio lock, and Phase 3's chat flow is specified to call `execute_trade()` directly with LLM-sourced args, bypassing the route-level guard the Phase 2 frontend still relies on
-- [ ] `GET /api/chat` (history) and `POST /api/chat` (send message, get full response) endpoints
-- [ ] `LLM_MOCK=true` deterministic mock mode for testing
 - [ ] Per-ticker sparklines accumulated from the SSE stream, in the watchlist panel — explicitly deferred from Phase 2 to Phase 4 (`PATTERNS.md`/`RESEARCH.md` scoped Phase 2 to the flash-cell + panel only)
 - [ ] Main chart area for the selected ticker
 - [ ] Portfolio heatmap (treemap, sized by weight, colored/saturated by P&L%)
 - [ ] P&L line chart from `portfolio_snapshots`
-- [ ] AI chat panel (collapsible, hydrates from `GET /api/chat`, inline trade/watchlist confirmation badges)
 - [ ] Multi-stage Dockerfile (Node build → Python runtime), single container, port 8000, volume-mounted SQLite
 - [ ] Start/stop scripts for macOS/Linux (bash) and Windows (PowerShell), idempotent
 - [ ] `.env.example` committed
@@ -85,6 +85,8 @@ A user can watch live prices, trade a simulated portfolio, and have an AI copilo
 | `execute_trade()` trusts its caller for `quantity > 0` and `side ∈ {"buy","sell"}` rather than re-validating internally | Plan 01 scoped it as the trade route's backing function only; Pydantic at the HTTP layer was assumed sufficient | Phase 1 — flagged as a gap by code review (WR-01/WR-02) once Phase 3's direct-call chat flow was considered; added to Active requirements, not yet fixed |
 | Defer all frontend automated testing (Vitest/React Testing Library) to Phase 6, verify Phase 2 entirely by manual browser UAT instead | Introducing a test framework mid-phase for a single wave of UI work would add setup cost without a second consumer yet; Phase 6 (`TEST-04`) already owns frontend test infra project-wide | ✓ Validated by Phase 2 — `workflow.human_verify_mode: end-of-phase` deferred every `<human-check>` to one end-of-phase UAT batch (8 items), all passed with 0 issues; Nyquist validation confirmed manual-by-design is not a coverage gap |
 | Client-side price-cell flash triggers on the cell's own last-rendered price (a `useRef`), never on the SSE tick's `previous_price` field | `PriceCache.update()` keeps `previous_price` stale-but-different forever after the first real move on an unchanged-price heartbeat, so a `previous_price`-based trigger would flash on every 0.5s heartbeat forever | ✓ Validated by Phase 2 — verified correct by code review, phase verification, and live 20+-second UAT observation (test 5) |
+| Use `openrouter/openrouter/free` instead of root PLAN.md §9's specified `openrouter/openai/gpt-oss-120b` | The specified model returned HTTP 402 (insufficient credits) on the very first live call; the free router was the only working path | ✓ Validated by Phase 3 — user-approved Rule 4 deviation (03-01-SUMMARY.md), re-confirmed and hardened around (not reverted) by every later gap-closure plan (03-06 failover, 03-08 sign-convention prompting) |
+| Normalize each LLM-proposed trade/watchlist item exactly once per loop iteration and reuse that single result for validation, execution, and outcome annotation, rather than deriving the normalized value separately at each of those three points | A confirmed live data-loss bug (G-03-6): the validator's normalized `" add".strip().lower()` passed, but the executor's separate `.lower()`-only re-derivation didn't match `"add"`, so it silently fell through to `remove_watchlist_ticker()` while reporting `outcome=executed` | ✓ Validated by Phase 3 (03-08) — structurally prevents the whole class of validator/executor divergence, not just the one reported instance |
 
 ## Evolution
 
@@ -104,4 +106,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-17 after Phase 2*
+*Last updated: 2026-09-21 after Phase 3*
