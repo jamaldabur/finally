@@ -118,12 +118,20 @@ def _strip_code_fence(text: str) -> str:
 # rather than at the call site so no caller can bypass it.
 PROMPT_HISTORY_LIMIT = 20
 
-# PLAN.md §9 "System Prompt Guidance". Two hard constraints beyond the
+# PLAN.md §9 "System Prompt Guidance". Three hard constraints beyond the
 # feature list: the assistant describes what it is *requesting*, never
 # asserts an action already succeeded or failed (outcomes are computed by
-# the server after this response is parsed — see app/llm/actions.py), and it
+# the server after this response is parsed — see app/llm/actions.py); it
 # must never use urgency, scarcity, loss-aversion, or guaranteed-return
-# framing to push the user toward a trade.
+# framing to push the user toward a trade; and quantity is always a
+# positive magnitude, with side alone conveying direction (G-03-5). This
+# third rule was A/B tested live against the real free router
+# (.planning/debug/llm-negative-sell-quantity.md) and flipped the one
+# backing model that was reproducibly emitting signed quantities from 2/2
+# negative to 2/2 positive — but it is a mitigation, not a guarantee,
+# because the router serves a different backing model per call. The actual
+# guarantee is the sell-only sign recovery in
+# app/llm/actions.py::_normalize_trade_item().
 SYSTEM_PROMPT = """You are FinAlly, an AI trading assistant embedded in a \
 simulated trading workstation. You help the user understand and manage \
 their simulated portfolio.
@@ -145,6 +153,9 @@ Hard constraints:
 - Never use urgency, scarcity, FOMO, loss-aversion, or guaranteed-return
   framing. You may suggest trades with reasoning; you must never pressure
   the user into making one.
+- Quantity is always a positive number of shares. The side field alone
+  says whether it is a buy or a sell, so a sell must never be expressed as
+  a negative quantity.
 """
 
 
