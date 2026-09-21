@@ -5,6 +5,7 @@ import { TradeBar } from "@/components/trade-bar/TradeBar";
 import { WatchlistPanel } from "@/components/watchlist/WatchlistPanel";
 import { PositionsTable } from "@/components/positions/PositionsTable";
 import { MainChart } from "@/components/charts/MainChart";
+import { PortfolioHeatmap } from "@/components/charts/PortfolioHeatmap";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 
 // D-08 three-column shell: a full-width header band pinned at the top, a
@@ -27,9 +28,12 @@ export default function Home() {
           <TradeBar />
         </div>
 
-        {/* The centre column is a stack of independently-bordered panels. */}
+        {/* The centre column is a stack of independently-bordered panels: main chart, a side-by-side panel row (heatmap), positions table. */}
         <main className="flex min-w-0 flex-1 flex-col gap-4">
           <MainChart />
+          <div className="flex gap-4">
+            <div className="flex-1"><PortfolioHeatmap /></div>
+          </div>
           <section className="rounded-lg border border-terminal-border bg-terminal-panel p-4">
             <PositionsTable />
           </section>
