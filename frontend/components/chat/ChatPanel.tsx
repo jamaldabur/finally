@@ -19,6 +19,22 @@
  * `w-80` plus the width transition, and the rail/section are both
  * `h-full w-full` children that simply fill whatever width it is given.
  *
+ * The wrapper itself declares no height utility of its own — this is
+ * load-bearing, not an omission (G-03-4). Its containing block (the body
+ * row in `page.tsx`) has a *specified* height of `auto`, so a percentage
+ * height here would resolve to content height; and a non-auto computed
+ * cross size simultaneously disables the `align-items: stretch` that is
+ * the only thing giving every sibling column its full height. A height
+ * utility here previously measured as a 48x59px chip pinned to the
+ * top-right corner, 782px shorter than the 48x841px rail its sibling
+ * `main` column occupies. Leaving the wrapper's height unset lets the
+ * row's default stretch size it exactly like its siblings. The rail
+ * button and the expanded section below correctly keep their own
+ * `h-full w-full` — that only resolves once the wrapper itself is
+ * stretched, since a stretched flex item has a definite cross size for
+ * them to fill. Do not re-add a height to the wrapper believing it
+ * harmless.
+ *
  * The collapsed flag lives in `useState` only, for the session — it is
  * never written to any browser persistence API, so a reload always
  * returns to expanded (03-UI-SPEC.md's session-only collapse assumption).
@@ -36,6 +52,13 @@ import { ChatMessageList } from "./ChatMessageList";
 // stays auditable and the two directions cannot drift apart.
 const EXPAND_GLYPH = "«"; // « LEFT-POINTING DOUBLE ANGLE QUOTATION MARK — points toward the panel opening
 const COLLAPSE_GLYPH = "»"; // » RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK — points toward the panel closing
+// Rail label: upright, horizontal text sharing its reading orientation
+// with EXPAND_GLYPH above it. Fits the rail's 46px inner width at the
+// existing 12px/500 Label role with room to spare (03-UI-SPEC.md
+// Amendments, G-03-4). A named constant, matching the glyph constants
+// above, so the design contract's copywriting row stays auditable
+// against the code.
+const RAIL_LABEL = "Chat";
 
 export function ChatPanel() {
   const { messages, hydrateError, sendError, isSending } = useChat();
@@ -70,7 +93,7 @@ export function ChatPanel() {
 
   return (
     <div
-      className={`flex h-full flex-shrink-0 overflow-hidden transition-[width] duration-200 ease-out motion-reduce:transition-none ${collapsed ? "w-12" : "w-80"}`}
+      className={`flex flex-shrink-0 overflow-hidden transition-[width] duration-200 ease-out motion-reduce:transition-none ${collapsed ? "w-12" : "w-80"}`}
     >
       {collapsed ? (
         <button
@@ -93,8 +116,8 @@ export function ChatPanel() {
           <span aria-hidden="true" className="text-terminal-text">
             {EXPAND_GLYPH}
           </span>
-          <span className="text-xs font-medium text-terminal-text-muted [writing-mode:vertical-rl]">
-            Chat
+          <span className="text-xs font-medium text-terminal-text-muted">
+            {RAIL_LABEL}
           </span>
           {hasUnread && (
             <span
