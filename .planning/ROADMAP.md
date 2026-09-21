@@ -136,7 +136,7 @@ Plans:
   3. The portfolio heatmap sizes rectangles by position weight and colors/saturates them by unrealized P&L%, capped at ±10%
   4. A P&L line chart shows total portfolio value over time, sourced from `portfolio_snapshots`
 
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 **UI hint**: yes
 
 Plans:
@@ -146,7 +146,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 — extends WatchlistRow and consumes the buffer)*
 
-- [ ] 04-02-PLAN.md — Click a ticker to drill in: selection context, the main chart, and the stacked-panel centre column (wave 2)
+- [x] 04-02-PLAN.md — Click a ticker to drill in: selection context, the main chart, and the stacked-panel centre column (wave 2)
 
 **Wave 3** *(blocked on Wave 2 — shares `frontend/app/page.tsx`)*
 
@@ -197,6 +197,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Backend Trading Engine | 4/4 | Complete    | 2026-09-16 |
 | 2. Core Trading UI | 3/3 | Complete    | 2026-09-17 |
 | 3. AI Chat Copilot | 8/8 | Complete    | 2026-09-21 |
-| 4. Portfolio Visualization | 1/4 | In Progress|  |
+| 4. Portfolio Visualization | 2/4 | In Progress|  |
 | 5. Docker Packaging & Deployment | TBD | Not started | - |
 | 6. Test Coverage | TBD | Not started | - |
