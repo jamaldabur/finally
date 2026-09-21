@@ -146,7 +146,7 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-Both G-03-1 and G-03-2 are closed by this plan (see `close_uat_gaps` step below). Sibling gap-closure plan 03-06 (backend LLM reliability, G-03-3) was already completed earlier in this same run, on an unrelated set of files (`backend/app/llm/client.py`, `backend/app/routes/chat.py`, `backend/tests/llm/test_client.py`) — no coordination was needed between the two plans.
+Both G-03-1 and G-03-2 are closed by this plan; both are marked `resolved` in `03-UAT.md`'s Gaps section as part of this same close-out. Sibling gap-closure plan 03-06 (backend LLM reliability, G-03-3) was already completed earlier in this same run, on an unrelated set of files (`backend/app/llm/client.py`, `backend/app/routes/chat.py`, `backend/tests/llm/test_client.py`) — no coordination was needed between the two plans.
 
 All three UAT gaps from `03-UAT.md`'s original round are now resolved. The one item this plan could not verify directly — the `<human-check>` visual/interaction walkthrough (rail findability and hover, smooth two-direction animation, button chrome/click feel, keyboard operability, reload-returns-expanded, and no unread dot on an immediately-collapsed fresh reload) — carries into the phase's next end-of-phase UAT pass, consistent with `workflow.human_verify_mode: end-of-phase` and the same deferral pattern already used successfully by sibling plans 03-03/03-04.
 

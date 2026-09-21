@@ -47,7 +47,9 @@ blocked: 0
 
 - gap_id: G-03-1
   truth: "Each step behaves exactly as described — the composite of the 03-03-PLAN.md and 03-04-PLAN.md <human-check> walkthroughs"
-  status: failed
+  status: resolved
+  resolved_by: "03-05"
+  resolved_at: "2026-09-21"
   reason: "User reported: the collapse of the AI assistant isn't working well"
   severity: major
   test: 1
@@ -61,7 +63,9 @@ blocked: 0
 
 - gap_id: G-03-2
   truth: "Click Collapse → panel becomes a narrow \"Chat\" rail; click it again → expands"
-  status: failed
+  status: resolved
+  resolved_by: "03-05"
+  resolved_at: "2026-09-21"
   reason: "User reported: collapse/expand feels broken and the collapsed rail is hard to notice/find; requesting a design change to the collapse control (add a clear expand/collapse affordance, e.g. a chevron icon, hover feedback, and a smoother transition)"
   severity: major
   test: 2

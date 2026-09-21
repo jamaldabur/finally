@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: AI Chat Copilot
 status: executing
-stopped_at: Completed 03-06-PLAN.md
-last_updated: "2026-09-20T19:14:09.030Z"
+stopped_at: Completed 03-05-PLAN.md
+last_updated: "2026-09-21T10:52:25.255Z"
 last_activity: 2026-09-20
 last_activity_desc: Phase 03 execution started
-state_head: aaef406757650ecfc9737f7a527b5a4b72b8a442
+state_head: 92deddeb7bc52d066650b2274c0e9bfd2b5023a2
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
   percent: 33
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-09-17)
 ## Current Position
 
 Phase: 03 (AI Chat Copilot) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-09-20 — Phase 03 execution started
 
@@ -71,6 +71,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 03 P03 | 20min | 2 tasks | 8 files |
 | Phase 03 P04 | 30min | 2 tasks | 5 files |
 | Phase 03 P06 | 25min | 2 tasks | 2 files |
+| Phase 03 P05 | 35min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,9 @@ Recent decisions affecting current work:
 - [Phase 03]: [Phase 03-04]: ChatMessageList's scroll-pin/new-activity flags are derived during render (conditional setState during render) rather than in a useEffect body, avoiding a set-state-in-effect lint violation while the actual DOM scroll mutation stays in a real useEffect
 - [Phase 03]: [Phase 03-06]: Deleted litellm.enable_json_schema_validation rather than re-enabling it after dropping stream=True — re-enabling would raise before parse_llm_response()'s fence recovery ever runs, reintroducing the exact silently-dropped-trade failure (G-03-3)
 - [Phase 03]: [Phase 03-06]: FALLBACK_MODEL set to openrouter/nvidia/nemotron-3-super-120b-a12b:free, matching this repo's agent-teams branch's independent choice for the same free-router flakiness
+- [Phase 03]: [Phase 03]: [Phase 03-05]: Amended 03-UI-SPEC.md before touching ChatPanel.tsx (spec-first) since the debug session traced G-03-1/G-03-2 to the spec itself, not the 03-04 executor's faithful implementation of it
+- [Phase 03]: [Phase 03]: [Phase 03-05]: Collapsed rail's WCAG 1.4.11 fix targets the edge token (border-terminal-text-muted, ~6.2:1), not the fill, so the rail doesn't become the brightest surface on screen and compete with the chat content it stands in for
+- [Phase 03]: [Phase 03]: [Phase 03-05]: ChatPanel's collapsed/expanded states merged into one persistent width-owning wrapper (transition-[width]) instead of two disjoint conditional returns, since CSS cannot interpolate a width across an unmount/remount
 
 ### Pending Todos
 
@@ -128,6 +132,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-20T19:14:08.709Z
-Stopped at: Completed 03-06-PLAN.md
+Last session: 2026-09-21T10:52:25.045Z
+Stopped at: Completed 03-05-PLAN.md
 Resume file: None
