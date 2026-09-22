@@ -15,6 +15,26 @@ APP_URL="http://localhost:8000"
 # caller's working directory (D-02).
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# `docker rm -f` can return before the daemon has fully released the
+# container name/port, particularly for a container with an in-flight
+# HEALTHCHECK exec (this one has one, D-11) — a `docker run` reusing the
+# same name immediately afterward can then race a "Conflict: container
+# name already in use" that only reproduces with the real timing of a
+# live invocation, never in an isolated one-off `docker rm` test (observed
+# live on the Windows pair, RESEARCH.md carries no equivalent bash-side
+# finding since the bash pair cannot be launch-tested on this machine —
+# see 05-02-PLAN.md Edge Coverage). Block on the removal actually
+# completing before any run/build step proceeds.
+remove_finally_container() {
+  docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
+  for _ in $(seq 1 20); do
+    if [ -z "$(docker ps -a --filter "name=^${CONTAINER_NAME}$" -q)" ]; then
+      return 0
+    fi
+    sleep 0.25
+  done
+}
+
 # 1. Argument validation, before anything else. Exact-equality match only —
 # no prefix/glob test — so an unrecognised argument can never reach a
 # docker invocation.
@@ -58,14 +78,14 @@ if [ -n "$RUNNING_ID" ]; then
   fi
   # P-02: an explicit rebuild wins over "already running".
   echo "Explicit rebuild requested — stopping the running container before rebuilding."
-  docker rm -f "$CONTAINER_NAME" >/dev/null
+  remove_finally_container
 fi
 
 # 5. Clear any stopped container of the same name so `docker run --name`
 # doesn't fail with a name collision. The container holds no state.
 STOPPED_ID="$(docker ps -a --filter "name=^${CONTAINER_NAME}$" -q)"
 if [ -n "$STOPPED_ID" ]; then
-  docker rm -f "$CONTAINER_NAME" >/dev/null
+  remove_finally_container
 fi
 
 # 6. Build if needed (D-06).
