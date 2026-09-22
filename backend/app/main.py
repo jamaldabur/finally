@@ -14,6 +14,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .db import chat_messages, portfolio_snapshots, positions, trades, users_profile
 from .db.watchlist import get_watchlist_tickers, init_db
@@ -30,6 +31,16 @@ from .routes import watchlist as watchlist_routes
 # No override=True: an already-exported variable or a test's
 # monkeypatch.setenv must both win over the file (03-01-PLAN.md Task 2).
 load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
+
+# backend/app/main.py -> parents[0]=app, [1]=backend — locally this resolves
+# to backend/static. Inside the Docker image, this same file lives at
+# /app/app/main.py, so parents[1] resolves to /app/static — exactly where
+# the Dockerfile's `COPY --from=frontend-build /app/frontend/out ./static`
+# lands the Next.js static export (Phase 5, D-04). This directory only
+# exists inside the built image (or after a manual `npm run build` +
+# manual copy) — a bare `uv run`/`pytest` checkout has no `backend/static/`,
+# which is why the mount below is guarded rather than unconditional.
+STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
 
 
 @asynccontextmanager
@@ -89,9 +100,11 @@ def create_app() -> FastAPI:
     # talks to the backend cross-origin during local development. Scoped to
     # exactly one explicit origin, no credentials — PLAN.md §3 production
     # architecture is same-origin (FastAPI serves the static export), so this
-    # middleware is inert there. Phase 5 should decide whether it ships in
-    # the Docker image at all once frontend and backend are always
-    # same-origin.
+    # middleware is inert there. Phase 5 (D-03): it ships unchanged in the
+    # Docker image — the single-container deployment is always same-origin,
+    # so no browser ever sends a cross-origin request matching
+    # localhost:3000, and stripping/env-gating a no-op would only add a new
+    # failure mode for local `next dev` against the packaged backend.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:3000"],
@@ -103,6 +116,17 @@ def create_app() -> FastAPI:
     app.include_router(portfolio.router)
     app.include_router(watchlist_routes.router)
     app.include_router(chat.router)
+    # Mounted LAST (D-04) so it never shadows an /api/* route: Starlette
+    # checks routes in registration order, and a mount at "/" would
+    # otherwise swallow everything. Guarded by is_dir() rather than
+    # StaticFiles' own check_dir=False, because silently accepting a
+    # missing directory would make a frontend-less image look healthy
+    # while serving nothing at "/" — the guard here means "skip the mount
+    # entirely", not "mount and pretend it's fine". STATIC_DIR is read as
+    # a module global (not a default argument) so tests can
+    # monkeypatch.setattr(main, "STATIC_DIR", ...) to steer it.
+    if STATIC_DIR.is_dir():
+        app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
     return app
 
 

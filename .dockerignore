@@ -1,0 +1,16 @@
+# Docker build-context exclusions (Phase 5, PLAN.md §11 / §4).
+# Keeps dependency trees, virtualenvs, VCS/tooling metadata, secrets, and
+# runtime data out of the build context and every image layer (ASVS V14).
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.next
+.git
+.planning
+.claude
+frontend/out
+db/*.db
+db/*.db-journal
+.env
+*.log
