@@ -25,8 +25,17 @@ export async function fetchPortfolio(): Promise<PortfolioResponse> {
   return res.json();
 }
 
-export async function fetchPortfolioHistory(): Promise<PortfolioHistoryResponse> {
-  const res = await fetch(`${BASE}/api/portfolio/history`);
+// `limit` is required rather than defaulted here: the display bound is a
+// property of the surface doing the drawing (currently
+// HISTORY_POINT_LIMIT, owned by portfolioHistoryStore.tsx), and a default
+// on this shared module would let a second future caller silently inherit
+// a number chosen for a panel it isn't rendering.
+export async function fetchPortfolioHistory(
+  limit: number,
+): Promise<PortfolioHistoryResponse> {
+  const res = await fetch(
+    `${BASE}/api/portfolio/history?limit=${limit}`,
+  );
   if (!res.ok) {
     throw new Error(`GET /api/portfolio/history failed: ${res.status}`);
   }

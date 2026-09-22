@@ -1,12 +1,17 @@
 "use client";
 
 /**
- * Portfolio value history context. The backend returns `portfolio_snapshots`
- * oldest-first (ordered by recorded_at ascending); this store passes them
- * through untouched — it never sorts, filters, thins, or synthesises points.
- * Polls every 30s, matching the backend's own snapshot cadence, through one
- * provider so only one poll exists. The loading flag starts true and is
- * cleared once, never raised again (04-RESEARCH.md Pitfall 4).
+ * Portfolio value history context. This store requests a bounded,
+ * most-recent window (HISTORY_POINT_LIMIT) rather than the entire recorded
+ * table — a server-side window stops the response body itself from growing
+ * without limit, which the never-pruned portfolio_snapshots table would
+ * otherwise guarantee. What arrives within that window is still passed
+ * through untouched: this store never sorts, filters, thins, or synthesises
+ * points, and the backend still returns them oldest-first (ordered by
+ * insertion order ascending). Polls every 30s, matching the backend's own
+ * snapshot cadence, through one provider so only one poll exists. The
+ * loading flag starts true and is cleared once, never raised again
+ * (04-RESEARCH.md Pitfall 4).
  */
 
 import {
@@ -22,6 +27,17 @@ import { fetchPortfolioHistory } from "./api";
 import type { PortfolioHistoryResponse } from "./types";
 
 const HISTORY_REFRESH_INTERVAL_MS = 30000;
+
+// The Portfolio Value panel's plot area is roughly 190-430px wide; the main
+// chart, which shares every style constant with this one (chartTheme.ts),
+// reads cleanly at about 0.46 points per horizontal pixel. 180 points across
+// that width is 0.42-0.94 points/px — the same regime, against the 5-11
+// points/px that merged adjacent 2px strokes into an ink band several times
+// their nominal weight (G-04-4 root cause). At the backend's 30-second
+// recording cadence this is roughly the last ninety minutes of activity;
+// PnlHistoryChart's time-scaled X axis makes that window self-evident from
+// the tick labels, so no extra copy is needed to state it.
+const HISTORY_POINT_LIMIT = 180;
 
 type PortfolioHistoryStoreValue = {
   history: PortfolioHistoryResponse | null;
@@ -49,7 +65,7 @@ export function PortfolioHistoryProvider({
     if (isRefreshingRef.current) return;
     isRefreshingRef.current = true;
     try {
-      const next = await fetchPortfolioHistory();
+      const next = await fetchPortfolioHistory(HISTORY_POINT_LIMIT);
       setHistory(next);
       setError(null);
     } catch (e) {
@@ -68,7 +84,7 @@ export function PortfolioHistoryProvider({
     let cancelled = false;
     (async () => {
       try {
-        const next = await fetchPortfolioHistory();
+        const next = await fetchPortfolioHistory(HISTORY_POINT_LIMIT);
         if (cancelled) return;
         setHistory(next);
         setError(null);
