@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Docker Packaging & Deployment
 status: executing
-stopped_at: Phase 5 context gathered
-last_updated: "2026-09-22T15:00:41.793Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-09-22T15:56:57.690Z"
 last_activity: 2026-09-22
-last_activity_desc: Phase 04 complete, transitioned to Phase 5
-state_head: b178d4c2073fcdfa3e1981b1124b0d51fc933289
+last_activity_desc: Phase 05 execution started
+state_head: 808e41837b8849cd8f88659d962f1d93a586748e
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 24
-  completed_plans: 22
+  completed_plans: 23
   percent: 67
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-22)
 
 **Core value:** A user can watch live prices, trade a simulated portfolio, and have an AI copilot execute trades on their behalf — the full agentic trading loop (watch → decide → chat → execute → see it reflected in the portfolio) must work end-to-end.
-**Current focus:** Phase 5 — Docker Packaging & Deployment
+**Current focus:** Phase 05 — Docker Packaging & Deployment
 
 ## Current Position
 
-Phase: 05 (Docker Packaging & Deployment) — READY TO EXECUTE
-Plan: Not started
+Phase: 05 (Docker Packaging & Deployment) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-09-22 — Phase 04 complete, transitioned to Phase 5
+Last activity: 2026-09-22 — Phase 05 execution started
 
 Progress: [███████░░░] 67%
 
@@ -81,6 +81,7 @@ Progress: [███████░░░] 67%
 | Phase 04 P05 | 15min | 2 tasks | 3 files |
 | Phase 04 P04-06 | 12min | 2 tasks | 1 files |
 | Phase 04 P04-07 | 15min | 3 tasks | 7 files |
+| Phase 05 P01 | 25min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -134,6 +135,8 @@ Recent decisions affecting current work:
 - [Phase 04]: [Phase 04][04-07]: Selected the bounded snapshot window by SQLite rowid rather than recorded_at — the 30s recorder and an on-trade insert can share an identical ISO timestamp, mirroring chat_messages.py's existing fix
 - [Phase 04]: [Phase 04][04-07]: HISTORY_POINT_LIMIT=180 derived from measured plot geometry (190-430px) at MainChart's proven ~0.46 points/px density, not picked arbitrarily
 - [Phase 04]: [Phase 04][04-07]: Server-side window (SQL LIMIT + validated route param) chosen over client-side trim or downsample — also stops the response body's unbounded growth, converting T-04-12 from accepted to mitigated
+- [Phase 05]: [Phase 05][05-01]: P-01 uv-acquisition strategy resolved with no substitution — ghcr.io/astral-sh/uv:0.10.9 (matching the locally installed uv version) pulled and built successfully on the first attempt
+- [Phase 05]: [Phase 05][05-01]: Bind-mount host path form proven on this Windows/Git-Bash/Docker-Desktop-WSL2 machine is 'pwd -W' plus MSYS_NO_PATHCONV=1 on docker run, not bare pwd — recorded for Plan 05-02's scripts to reuse
 
 ### Pending Todos
 
@@ -157,6 +160,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-22T11:48:08.334Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-docker-packaging-deployment/05-CONTEXT.md
+Last session: 2026-09-22T15:56:57.318Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None

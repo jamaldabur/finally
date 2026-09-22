@@ -137,3 +137,10 @@ Plan 05-02 (start/stop scripts) can now build directly on: image tag `finally:la
 ---
 *Phase: 05-docker-packaging-deployment*
 *Completed: 2026-09-22*
+
+## Self-Check: PASSED
+
+All created/modified files confirmed present on disk (Dockerfile, .dockerignore,
+.env.example, backend/app/main.py, backend/tests/test_main.py, this SUMMARY.md).
+All four commit hashes (80250bf, e66cfa0, 5fec63f, 808e418) confirmed present in
+`git log --oneline --all`.
