@@ -24,10 +24,6 @@ result: pass
 expected: Tab to MainChart and to the Portfolio Value panel and confirm a visible on-theme focus ring appears only via keyboard (never on mouse click), arrow keys move each chart's tooltip while focused, and Tab never lands on the Portfolio Heatmap. A 2px light ring appears just outside each of the two standalone charts on :focus-visible only; ArrowRight/ArrowLeft moves the hover tooltip; the heatmap is never a tab stop.
 result: pass
 
-### 3. Chart focus ring appearance and keyboard tooltip navigation (04-05 Task 2 / D9 confirmation)
-expected: Tab to MainChart and to the Portfolio Value panel and confirm a visible on-theme focus ring appears only via keyboard (never on mouse click), arrow keys move each chart's tooltip while focused, and Tab never lands on the Portfolio Heatmap. A 2px light ring appears just outside each of the two standalone charts on :focus-visible only; ArrowRight/ArrowLeft moves the hover tooltip; the heatmap is never a tab stop.
-result: [pending]
-
 ## Summary
 
 total: 3
