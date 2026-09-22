@@ -178,7 +178,12 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 05-01-PLAN.md — Tracer: one multi-stage image serves frontend + API on port 8000 with a bind-mounted SQLite that survives container replacement, plus the guarded static mount, its regression tests, and `.env.example` (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 05-02-PLAN.md — Idempotent start/stop scripts for macOS/Linux (bash) and Windows (PowerShell), proven by a live start/re-start/stop/re-stop round trip (wave 2)
 
 ### Phase 6: Test Coverage
