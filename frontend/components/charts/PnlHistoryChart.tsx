@@ -3,12 +3,27 @@
 /**
  * Portfolio Value line chart over recorded `portfolio_snapshots`.
  *
- * Contract facts this component depends on and does not own: the backend
- * returns snapshots ascending by recorded time, and the series is drawn
- * exactly as recorded. It plots the points it was given and nothing between
- * them — no smoothing, no resampling, no gap-filling — because every point on
- * this line is a claim about what the portfolio was actually worth at a
- * recorded moment.
+ * Contract facts this component depends on and does not own: the series it
+ * receives is a bounded window of the most recent snapshots rather than the
+ * whole recorded history — portfolioHistoryStore.tsx owns that bound
+ * (HISTORY_POINT_LIMIT) and this component trusts it rather than trimming
+ * again. The backend returns that window ascending by recorded time, and the
+ * series is drawn exactly as recorded: it plots the points it was given and
+ * nothing between them — no smoothing, no resampling, no gap-filling —
+ * because every point on this line is a claim about what the portfolio was
+ * actually worth at a recorded moment.
+ *
+ * The x position comes from a numeric projection of each row's own
+ * `recorded_at` (`recorded_at_ms`, see below), so elapsed time between
+ * points is drawn to scale and a gap in the record reads as a gap, rather
+ * than every point being spaced evenly by index regardless of how much time
+ * actually passed.
+ *
+ * This panel deliberately keeps Recharts' focusable chart surface, per the
+ * decision recorded in Plan 04-05 (standalone chart panels keep the
+ * keyboard tooltip navigation Recharts wires up by default), with its focus
+ * ring supplied by the single global `.recharts-surface:focus-visible` rule
+ * in `app/globals.css` — not by any prop on this component.
  */
 
 import {
@@ -55,6 +70,23 @@ export function PnlHistoryChart() {
     ),
   );
 
+  // One-to-one projection of each row's own recorded_at into a numeric time
+  // value used only for placement on the X axis — not a second source of
+  // truth, and not a new data point: no row is added, removed or reordered.
+  // No guard around a non-parseable timestamp: the backend's snapshot writer
+  // is the only producer of these strings and it emits ISO-8601, so a value
+  // that fails to parse means a corrupted row, and a chart that visibly
+  // fails on one is a better outcome than one that quietly omits a recorded
+  // portfolio value.
+  const chartData = snapshots.map((s) => ({
+    ...s,
+    recorded_at_ms: Date.parse(s.recorded_at),
+  }));
+
+  function formatAxisTime(ms: number): string {
+    return Number.isFinite(ms) ? timeFormat.format(new Date(ms)) : "";
+  }
+
   // Branches key on having no data, not on the loading flag alone, so a
   // periodic refresh can never return the panel to its loading copy.
   let body;
@@ -84,12 +116,15 @@ export function PnlHistoryChart() {
       <div className="mt-3 min-h-0 flex-1">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
-            data={snapshots}
+            data={chartData}
             margin={{ top: 20, right: 16, bottom: 0, left: 0 }}
           >
             <XAxis
-              dataKey="recorded_at"
-              tickFormatter={formatTime}
+              dataKey="recorded_at_ms"
+              type="number"
+              scale="time"
+              domain={["dataMin", "dataMax"]}
+              tickFormatter={formatAxisTime}
               tick={TICK_STYLE}
               axisLine={AXIS_LINE}
               tickLine={AXIS_LINE}
