@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Portfolio Visualization
 status: executing
-stopped_at: Completed 04-06-PLAN.md
-last_updated: "2026-09-22T10:40:11.350Z"
+stopped_at: Completed 04-07-PLAN.md
+last_updated: "2026-09-22T10:54:09.133Z"
 last_activity: 2026-09-22
 last_activity_desc: Phase 04 execution started
-state_head: aa736c0b3c0deae517186db02f35d004a384a0f8
+state_head: c3700943b60d9f2fc82be81a292ce6657d1381ad
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 22
-  completed_plans: 21
+  completed_plans: 22
   percent: 50
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 ## Current Position
 
 Phase: 04 (Portfolio Visualization) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-09-22 — Phase 04 execution started
 
@@ -79,6 +79,7 @@ Progress: [█████░░░░░] 50%
 | Phase 04 P04 | 15min | 2 tasks | 6 files |
 | Phase 04 P05 | 15min | 2 tasks | 3 files |
 | Phase 04 P04-06 | 12min | 2 tasks | 1 files |
+| Phase 04 P04-07 | 15min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -129,6 +130,9 @@ Recent decisions affecting current work:
 - [Phase 04]: [Phase 04][04-05]: Chart focus ring implemented as one shared .recharts-surface:focus-visible global CSS rule (2px solid var(--color-terminal-text), 2px offset), matching the existing .tabular-nums one-rule-reaches-every-instance pattern
 - [Phase 04]: [Phase 04][04-06]: Split the two-task heatmap label-fit fix into two separate commits despite touching the same function, so PCT_MIN_HEIGHT/drop-order structure changes (Task 2) land distinctly from the labelFits() text-fit gate (Task 1)
 - [Phase 04]: [Phase 04][04-06]: Per-glyph advance constants (ticker=7, pct=6) pinned to the top of the measured live range rather than the middle, since under-reporting risks label overflow which the UI-SPEC forbids outright
+- [Phase 04]: [Phase 04][04-07]: Selected the bounded snapshot window by SQLite rowid rather than recorded_at — the 30s recorder and an on-trade insert can share an identical ISO timestamp, mirroring chat_messages.py's existing fix
+- [Phase 04]: [Phase 04][04-07]: HISTORY_POINT_LIMIT=180 derived from measured plot geometry (190-430px) at MainChart's proven ~0.46 points/px density, not picked arbitrarily
+- [Phase 04]: [Phase 04][04-07]: Server-side window (SQL LIMIT + validated route param) chosen over client-side trim or downsample — also stops the response body's unbounded growth, converting T-04-12 from accepted to mitigated
 
 ### Pending Todos
 
@@ -151,6 +155,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-22T10:40:10.857Z
-Stopped at: Completed 04-06-PLAN.md
+Last session: 2026-09-22T10:54:08.639Z
+Stopped at: Completed 04-07-PLAN.md
 Resume file: None
