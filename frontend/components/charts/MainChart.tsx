@@ -5,6 +5,16 @@
  * shared price-history buffer the sparklines read; it opens no stream and makes
  * no request (selection is synchronous client state, so there is nothing to
  * load and nothing that can fail).
+ *
+ * This chart deliberately keeps Recharts' default keyboard-widget surface
+ * (unlike Sparkline.tsx, which opts out — see that file's docblock). As a
+ * standalone panel rather than a descendant of another control, its tab stop
+ * steals nothing from anything else, and the arrow-key tooltip navigation
+ * Recharts wires up here is the only keyboard route to this panel's plotted
+ * values. Its focus ring is supplied by the single global
+ * `.recharts-surface:focus-visible` rule in `app/globals.css`, not by any
+ * per-component styling — so the correct implementation of "keeps the
+ * default" is to pass nothing accessibility-related to the chart below.
  */
 
 import {

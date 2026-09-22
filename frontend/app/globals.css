@@ -45,3 +45,21 @@ body {
 .tabular-nums {
   font-family: var(--font-numeric);
 }
+
+/* Recharts renders every accessibility-enabled chart (MainChart,
+   PnlHistoryChart) with a focusable root <svg class="recharts-surface">,
+   so this one rule reaches every such surface without threading a class
+   through each chart component — the same reasoning as `.tabular-nums`
+   above. Replacing the browser's default `outline: auto` ring is
+   deliberate: that default is what made a focused 20px watchlist
+   sparkline look like a broken empty box during UAT (G-04-2b). Using
+   `:focus-visible` rather than bare `:focus` means a mouse click on a
+   chart never paints the ring — Recharts focuses the surface on pointer
+   interaction too, and a ring on every click would read as a rendering
+   glitch. The neutral text token is used rather than an accent hue,
+   matching the UI-SPEC's precedent that a focus state is chrome and this
+   app spends no reserved accent colour on chrome. */
+.recharts-surface:focus-visible {
+  outline: 2px solid var(--color-terminal-text);
+  outline-offset: 2px;
+}
