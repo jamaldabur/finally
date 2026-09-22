@@ -7,6 +7,10 @@ set -euo pipefail
 
 CONTAINER_NAME="finally"
 
+# Resolve the repository root from this script's own location, not the
+# caller's working directory — matches start_mac.sh's constants exactly.
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
 # 1. Accept zero arguments only.
 if [ "$#" -gt 0 ]; then
   echo "Usage: $0" >&2
@@ -28,5 +32,5 @@ fi
 
 # 4. Stop it. The data in db/ is left untouched.
 docker stop "$CONTAINER_NAME" >/dev/null
-echo "FinAlly is stopped. The data in db/ has been left untouched."
+echo "FinAlly is stopped. The data in ${REPO_ROOT}/db has been left untouched."
 exit 0
