@@ -2,101 +2,183 @@
 phase: 04-portfolio-visualization
 reviewed: 2026-09-22T00:00:00Z
 depth: standard
-files_reviewed: 14
+files_reviewed: 11
 files_reviewed_list:
-  - frontend/app/layout.tsx
-  - frontend/app/page.tsx
-  - frontend/components/charts/chartTheme.ts
-  - frontend/components/charts/MainChart.tsx
-  - frontend/components/charts/PnlHistoryChart.tsx
-  - frontend/components/charts/PortfolioHeatmap.tsx
   - frontend/components/charts/Sparkline.tsx
-  - frontend/components/watchlist/WatchlistRow.tsx
+  - frontend/app/globals.css
+  - frontend/components/charts/MainChart.tsx
+  - frontend/components/charts/PortfolioHeatmap.tsx
+  - backend/app/db/portfolio_snapshots.py
+  - backend/app/routes/portfolio.py
+  - backend/tests/db/test_portfolio_snapshots.py
+  - backend/tests/routes/test_portfolio.py
   - frontend/lib/api.ts
-  - frontend/lib/chartSelection.tsx
   - frontend/lib/portfolioHistoryStore.tsx
-  - frontend/lib/priceStore.tsx
-  - frontend/lib/types.ts
-  - frontend/package.json
+  - frontend/components/charts/PnlHistoryChart.tsx
 findings:
   critical: 0
-  warning: 5
-  info: 4
-  total: 9
+  warning: 3
+  info: 1
+  total: 4
 status: issues_found
 ---
 
-# Phase 4: Code Review Report
+# Phase 4: Code Review Report (Gap-Closure Plans 04-05, 04-06, 04-07)
 
-**Reviewed:** 2026-09-22
+**Reviewed:** 2026-09-22T00:00:00Z
 **Depth:** standard
-**Files Reviewed:** 14 (types.ts and package.json had nothing to flag)
+**Files Reviewed:** 11
 **Status:** issues_found
 
 ## Summary
 
-No security problems or crashes were found. The main defects are behavioural: the P&L chart goes stale after a trade, and both line charts plot irregularly spaced points at even spacing on the x-axis. Selection state is also never reconciled with the watchlist.
+This review covers only what changed in these 11 files since commit `6f2466c` (the
+prior 04-REVIEW.md baseline): the keyboard/focus-ring fix for the watchlist
+sparkline (04-05), the treemap label-fit rewrite (04-06), and the
+`portfolio_snapshots` windowing + time-scaled P&L X-axis work (04-07).
+
+The three gap closures are each well-targeted at their root causes and are
+backed by strong reasoning in their docblocks/commit comments — the heatmap
+`labelFits()` rewrite in particular matches the measured glyph-width evidence
+in `.planning/debug/heatmap-tile-pct-label-missing.md` closely, and the
+`rowid`-based snapshot ordering correctly fixes the duplicate-`recorded_at`
+tie-break bug with a test (`test_window_survives_duplicate_recorded_at`) that
+actually forces the collision rather than hoping to get lucky. No critical
+or security-relevant defects were found.
+
+However, the P&L history windowing (04-07) introduced a new numeric,
+time-scaled X axis without fully reconciling it against the very
+duplicate-timestamp behavior the same plan's backend half explicitly
+documents and tests as an expected occurrence — see WR-01 and WR-02 below.
+The new `limit` parameter on `get_snapshots()`/`_get_snapshots_sync()` also
+relies entirely on the route layer for its lower bound, which quietly
+reopens the exact "unbounded response" gap (G-04-4) this work exists to
+close, for any caller other than the one route — see WR-03.
 
 ## Warnings
 
-### WR-01: P&L chart does not update after a trade (external contract gap)
+### WR-01: Duplicate `recorded_at` timestamps produce a visual spike on the now-numeric X axis
 
-**File:** `frontend/lib/portfolioHistoryStore.tsx:89-94`
-**Issue:** PLAN.md §7 says a snapshot is recorded immediately after each trade. The history store only polls every 30s and exposes `refresh`, but nothing calls it after a manual trade (TradeBar) or an assistant trade (chatStore). The chart therefore lags up to 30s behind the trade, and the "check back after your first trade" empty-state copy is misleading. Portfolio state refreshes immediately, so the UI is inconsistent.
-**Fix:** After a successful trade in the trade flow and in chatStore, call `usePortfolioHistory().refresh()`. This works with the current provider nesting, because `PortfolioHistoryProvider` sits inside `ChatProvider`. Chat would need the provider moved above it, or the refresh triggered from a shared effect that watches the portfolio snapshot.
+**File:** `frontend/components/charts/PnlHistoryChart.tsx:81-131`
+**Issue:** `backend/app/db/portfolio_snapshots.py` explicitly documents (and
+`test_window_survives_duplicate_recorded_at` explicitly forces) the case
+where two snapshots — e.g. the 30-second recorder tick and an
+immediately-following post-trade insert — share one `recorded_at` string
+because `datetime.now()`'s effective resolution can be coarser than
+microseconds on some platforms. This is called out as a legitimate,
+expected occurrence, not an edge case to eliminate.
 
-### WR-02: Line charts use a category x-axis, so irregular timestamps are drawn evenly spaced
+`PnlHistoryChart` now plots on a `type="number" scale="time"` X axis keyed
+on `recorded_at_ms = Date.parse(s.recorded_at)` (lines 81-84, 122-131). Two
+adjacent points with an identical `recorded_at_ms` but different
+`total_value` (exactly the scenario the backend fix anticipates) will sit at
+the same X coordinate with different Y coordinates. Recharts' line generator
+draws every point in array order regardless of X, so this renders as a
+vertical (or near-vertical) segment — a visible spike that reads as an
+instantaneous, discontinuous jump in portfolio value at a single instant,
+when in fact the two points are sequential events that merely share a
+timestamp string. `Sparkline.tsx`'s docblock shows the team is alert to this
+class of problem elsewhere ("equal consecutive prices merge into one
+recorded point"), but no analogous handling (e.g. a small synthetic offset,
+or de-duplication/merge on the frontend, or a coarser recorded_at
+granularity contract) exists here.
+**Fix:** Either widen `recorded_at`'s effective resolution at the write site
+(e.g. force microsecond-distinct timestamps, reverting part of the 04-07
+rationale) or handle the collision on read — e.g. break ties for charting
+purposes by nudging by array index (`recorded_at_ms + i * epsilon`) so two
+same-timestamp points remain visually adjacent rather than overlapping:
+```tsx
+const chartData = snapshots.map((s, i) => ({
+  ...s,
+  // Guarantee strictly increasing X for charting only; does not change the
+  // stored/returned recorded_at or reorder data.
+  recorded_at_ms: Date.parse(s.recorded_at) + i,
+}));
+```
 
-**File:** `frontend/components/charts/PnlHistoryChart.tsx:90-97`, `frontend/components/charts/MainChart.tsx:81-88`
-**Issue:** `XAxis dataKey="recorded_at"` and `dataKey="timestamp"` default to a category axis. Snapshots include immediate post-trade points that fall between the 30s ticks. `priceStore` also drops unchanged prices, so main-chart points are irregular in time too. Both charts distort the time axis, which contradicts the "drawn exactly as recorded" claim in the file header.
-**Fix:** Map each point to a numeric time (`t: Date.parse(...)`) and use `<XAxis type="number" dataKey="t" scale="time" domain={["dataMin","dataMax"]} />`. Keep `tickFormatter` working on the number.
+### WR-02: "No guard against a non-parseable timestamp" does not deliver the claimed "visible failure"
 
-### WR-03: Selected ticker is not cleared when it is removed from the watchlist
+**File:** `frontend/components/charts/PnlHistoryChart.tsx:73-88`
+**Issue:** The docblock/comment added in this diff states: "No guard around
+a non-parseable timestamp: ... a chart that visibly fails on one is a better
+outcome than one that quietly omits a recorded portfolio value." But the
+code added in the same diff does not actually produce a visible failure for
+a non-finite `recorded_at_ms`:
+- `formatAxisTime` (line 86-88), added in this same diff, *does* guard with
+  `Number.isFinite(ms) ? ... : ""` — silently blanking the tick label rather
+  than failing visibly.
+- A `NaN` value flowing into a `type="number"` axis with
+  `domain={["dataMin", "dataMax"]}` will most likely either be silently
+  skipped by Recharts' line/domain calculation (producing a quiet gap — the
+  very "quietly omits" outcome the comment says is worse) or corrupt
+  `dataMin`/`dataMax` into `NaN`, which manifests as a blank/broken chart
+  with no visible error message, not a loud failure a user or developer
+  could act on.
 
-**File:** `frontend/lib/chartSelection.tsx:22-29`, `frontend/components/charts/MainChart.tsx:46-48`
-**Issue:** The selection is plain state and is never reconciled with the watchlist. Removing the selected ticker (manually or via chat) leaves the main chart showing a symbol that is no longer watched. Its price history stays in the buffer, so the chart still renders.
-**Fix:** Clear the selection when the ticker disappears, for example in WatchlistPanel's remove handler with `if (selectedTicker === t) setSelectedTicker(null)`. Alternatively, have MainChart treat a selection missing from the watchlist as null.
+Either way, the actual failure mode is silent rather than the "visible
+failure" the comment asserts is the deliberate tradeoff, so the comment is
+misleading about what happens, and the current behavior is inconsistent (one
+sibling function guards, the data pipeline feeding it does not).
+**Fix:** Pick one behavior and make the comment match it: either guard
+`recorded_at_ms` itself and drop/flag rows that fail to parse (matching
+`formatTime`'s and `formatAxisTime`'s existing guard style), or add an
+explicit, visible error state (e.g. render an alert banner) when any
+snapshot's timestamp fails to parse, so the "visibly fails" claim is true in
+practice.
 
-### WR-04: Unguarded `JSON.parse` in the SSE handler
+### WR-03: `get_snapshots`/`_get_snapshots_sync` do not enforce their own `limit` lower bound
 
-**File:** `frontend/lib/priceStore.tsx:84-85`
-**Issue:** A malformed `prices` payload throws inside the event listener. The exception is uncaught, and every later event depends on the same path. `payload.ticks` is also assumed to exist without a check.
-**Fix:** Wrap the parse in try/catch and return early on failure. Check `Array.isArray(payload?.ticks)` before iterating.
-
-### WR-05: History refresh can set state after unmount and duplicates the fetch logic
-
-**File:** `frontend/lib/portfolioHistoryStore.tsx:48-87`
-**Issue:** `refresh` has no cancellation guard, so an in-flight interval fetch calls `setState` after unmount. The mount effect is a second copy of the same logic and does not use `isRefreshingRef`. A mount fetch and an interval `refresh` can therefore overlap, and the older response can overwrite the newer one.
-**Fix:** Have both paths share one guarded function with a `mountedRef` check, or a request-sequence counter that discards stale responses.
+**File:** `backend/app/db/portfolio_snapshots.py:72-117`
+**Issue:** The entire point of 04-07 Task 1 (closing gap G-04-4) is to stop
+`portfolio_snapshots` reads from growing the response body without bound.
+That bound is currently enforced only by `app/routes/portfolio.py`'s
+`Query(default=DEFAULT_SNAPSHOT_LIMIT, ge=1, le=MAX_SNAPSHOT_LIMIT)` — the
+DB function itself performs no validation on `limit` before splicing it into
+`... LIMIT ?`. SQLite's own semantics for `LIMIT` make this a real gap, not
+just defensive-programming pedantry: a `LIMIT` value of `0` returns zero
+rows, and a **negative** `LIMIT` value means "no upper bound at all" (SQLite
+returns every matching row). `get_snapshots()` is a public, exported,
+directly-importable function (already called directly by several tests) —
+any future direct caller (a background job, a chat-tool handler, an admin
+script) that passes `limit=-1` or a miscomputed negative value would
+silently get the entire unbounded table back, exactly reopening G-04-4,
+with no error and no test coverage protecting against it.
+**Fix:** Validate inside the DB layer itself, not only at the route:
+```python
+async def get_snapshots(
+    user_id: str = DEFAULT_USER_ID, limit: int = DEFAULT_SNAPSHOT_LIMIT
+) -> list[PortfolioSnapshot]:
+    if limit < 1:
+        raise ValueError(f"limit must be >= 1, got {limit}")
+    return await asyncio.to_thread(_get_snapshots_sync, user_id, limit)
+```
 
 ## Info
 
-### IN-01: Legend labels hardcode the 10% cap
+### IN-01: No automated regression coverage for the 04-05/04-06 frontend fixes
 
-**File:** `frontend/components/charts/PortfolioHeatmap.tsx:105-107`
-**Issue:** The labels are literal `−10%`/`+10%` while `HEATMAP_CAP_PCT` exists (and is used in the aria-label). They will drift if the cap is changed.
-**Fix:** Render `−{HEATMAP_CAP_PCT}%` and `+{HEATMAP_CAP_PCT}%`.
-
-### IN-02: Tile text contrast flips abruptly at intensity 0.5
-
-**File:** `frontend/components/charts/chartTheme.ts:84-86`
-**Issue:** The switch to dark ink at 0.5 is a guessed threshold, so mid-range fills may have poor contrast with the light ink.
-**Fix:** Choose the ink from the computed luminance of the mixed fill (WCAG contrast).
-
-### IN-03: Duplicated error-parsing block in the API client
-
-**File:** `frontend/lib/api.ts:63-69`, `99-105`
-**Issue:** `postTrade` and `postChatMessage` carry identical detail-parsing logic. A `detail` that is a non-string, non-array object would produce a bad `Error` message.
-**Fix:** Extract a shared `throwApiError(res)` helper and coerce with `String(...)`.
-
-### IN-04: Watchlist change % is session-relative while the header says "daily"
-
-**File:** `frontend/components/watchlist/WatchlistRow.tsx:26-31`
-**Issue:** `firstPrices` is the first price seen in the session, so the percentage resets on every page load. PLAN.md §10 asks for "daily change %". The header comment discloses the limitation, but a ticker added mid-session starts at 0%.
-**Fix:** Document this as an accepted limitation, or have the backend expose a session or day open price.
+**File:** `frontend/components/charts/Sparkline.tsx`, `frontend/components/charts/PortfolioHeatmap.tsx`
+**Issue:** Both the `accessibilityLayer={false}` keyboard-focus fix (04-05)
+and the `labelFits()` glyph-metric rewrite (04-06) are verified only via the
+manual/headless-Chrome debug sessions recorded in
+`.planning/debug/keyboard-activation-watchlist-row.md` and
+`.planning/debug/heatmap-tile-pct-label-missing.md`. Neither ships with a
+runnable regression test, so a later refactor of either component (e.g.
+someone re-adding `accessibilityLayer` for an unrelated reason, or tweaking
+`TICKER_GLYPH_ADVANCE`/`PCT_GLYPH_ADVANCE`) has nothing automated to catch a
+regression. This is consistent with the frontend having no test runner
+configured project-wide (`frontend/package.json` has no `test` script and no
+Vitest/Jest/RTL dependency), so it is not a new gap introduced by this diff
+specifically — noted for awareness rather than as a defect unique to these
+plans.
+**Fix:** Out of scope for this diff given no frontend test infra exists yet;
+worth tracking as a follow-up once frontend unit testing is set up (e.g. a
+Vitest + Testing Library snapshot asserting `labelFits()`'s pure function
+behavior at the documented boundary widths, and a DOM-level assertion that
+`Sparkline`'s root has no `tabindex`).
 
 ---
 
-_Reviewed: 2026-09-22_
+_Reviewed: 2026-09-22T00:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
