@@ -14,6 +14,22 @@
  * -> the end marker alone at that price; two or more -> the line plus the
  * end marker. No axes, tooltip, legend or text: the adjacent PriceCell is the
  * row's numeric readout.
+ *
+ * This is the only one of the app's four charts that opts out of Recharts'
+ * accessibility layer (`accessibilityLayer={false}` below). Recharts 3.x
+ * defaults every cartesian chart's root <svg> to `tabindex="0"
+ * role="application"`, and this chart alone is rendered as a DOM descendant
+ * of an already-focusable control (`WatchlistRow`'s `role="button"`), so
+ * leaving the default on gives each row two tab stops instead of one. The
+ * consequence was specific: one Tab from a selected row landed back inside
+ * that same row's own sparkline, and Enter/Space there re-selected the
+ * ticker that was already selected — a silent no-op the user read as
+ * keyboard activation simply not working. While that surface held focus the
+ * browser also painted its default ring tightly around the 20px-tall chart,
+ * which is what the user separately reported as the mini graph being
+ * broken. Opting out removes the stray tab stop and its ring; the wrapper's
+ * `role="img"` and interpolated `aria-label` below keep the sparkline
+ * described for assistive technology either way.
  */
 
 import { Line, LineChart, ResponsiveContainer } from "recharts";
@@ -63,6 +79,10 @@ export function Sparkline({ ticker }: { ticker: string }) {
           // The end dot sits on the data extreme; let it overflow the 20px band
           // instead of being clipped by the SVG viewport.
           style={{ overflow: "visible" }}
+          // See the module docblock: this chart is a descendant of the
+          // already-focusable WatchlistRow, so it must not compete for the
+          // next Tab stop.
+          accessibilityLayer={false}
         >
           <Line
             type="linear"
