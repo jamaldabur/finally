@@ -20,10 +20,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-21)
+See: .planning/PROJECT.md (updated 2026-09-22)
 
 **Core value:** A user can watch live prices, trade a simulated portfolio, and have an AI copilot execute trades on their behalf — the full agentic trading loop (watch → decide → chat → execute → see it reflected in the portfolio) must work end-to-end.
-**Current focus:** Phase 04 — Portfolio Visualization
+**Current focus:** Phase 5 — Docker Packaging & Deployment
 
 ## Current Position
 
@@ -145,6 +145,7 @@ None yet.
 - Known tech debt in the existing market data layer (sync SQLite via `asyncio.to_thread`, no connection pooling, inline schema definitions, broad exception handling in the update loop) is acceptable at current single-user demo scale per `.planning/codebase/CONCERNS.md` — not blocking, not required to fix this milestone.
 - [Phase 1] The 30s background snapshot recorder (`run_portfolio_snapshot_loop`) does not hold `portfolio_lock`, unlike the on-trade snapshot insert — a trade racing the recorder's read could record a torn (partially-committed) `total_value` into the never-pruned `portfolio_snapshots` table. Flagged by 01-REVIEW.md (WR-03); narrow window, no test currently covers it.
 - [Phase 3] Three non-blocking advisories from 03-REVIEW.md/03-VERIFICATION.md remain unfixed by design (all narrow, non-destructive): `chatStore.tsx`'s send try-block scope could misclassify a successful send as failed if `refreshPortfolio()` ever started rejecting (currently never does); the hasSentRef release-on-failed-send fix only covers one of two hydrate/send orderings, so a fast failing send before hydrate resolves could still discard history for that session; the collapsed-panel unread dot is dead code since `ChatInput` unmounts while collapsed. None contradict a roadmap success criterion.
+- [Phase 4] Three non-blocking advisories from 04-REVIEW.md (gap-closure round) remain unfixed by design: `PnlHistoryChart.tsx`'s time-scaled axis has no explicit handling for two same-`recorded_at` points (a documented, tested legitimate occurrence in `portfolio_snapshots.py`) — renders as a vertical spike rather than a data error; the docblock's "a chart that visibly fails is better than one that quietly omits a value" claim doesn't match `formatAxisTime`'s actual silent-blank behavior on non-finite values; `get_snapshots()`/`_get_snapshots_sync` trust the route's `Query(ge=1,le=MAX_SNAPSHOT_LIMIT)` validation rather than bounding `limit` themselves, so a future direct (non-route) caller passing a negative limit would reopen G-04-4 via SQLite's negative-LIMIT-means-unbounded behavior. None contradict a roadmap success criterion.
 
 ## Deferred Items
 
@@ -156,6 +157,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-22T10:54:08.639Z
-Stopped at: Phase 04 complete, ready to plan Phase 5
+Last session: 2026-09-22T15:00:00Z
+Stopped at: Phase 04 complete (UAT passed 3/3, all gates green), ready to plan Phase 5
 Resume file: None

@@ -35,13 +35,10 @@ A user can watch live prices, trade a simulated portfolio, and have an AI copilo
 - ✓ `GET /api/chat` (history) and `POST /api/chat` (send message, get full response) endpoints — Phase 3
 - ✓ `LLM_MOCK=true` deterministic mock mode for testing — Phase 3
 - ✓ AI chat panel (collapsible, hydrates from `GET /api/chat`, inline trade/watchlist confirmation badges) — Phase 3, closed after 3 UAT gap-closure rounds (collapse-control accessibility/motion, LLM fence-recovery/failover, action-outcome normalization, collapsed-rail full-height rendering)
-
-### Active
-
-- [ ] Per-ticker sparklines accumulated from the SSE stream, in the watchlist panel — explicitly deferred from Phase 2 to Phase 4 (`PATTERNS.md`/`RESEARCH.md` scoped Phase 2 to the flash-cell + panel only)
-- [ ] Main chart area for the selected ticker
-- [ ] Portfolio heatmap (treemap, sized by weight, colored/saturated by P&L%)
-- [ ] P&L line chart from `portfolio_snapshots`
+- ✓ Per-ticker sparklines accumulated from the SSE stream, in the watchlist panel — Phase 4
+- ✓ Main chart area for the selected ticker, keyboard- and click-selectable from the watchlist — Phase 4, closed after 1 UAT gap-closure round (Recharts default `accessibilityLayer` made the sparkline a second tab stop per row and grew a broken-looking default focus ring; opted sparklines out and gave MainChart/PnlHistoryChart a deliberate themed focus ring instead)
+- ✓ Portfolio heatmap (treemap, sized by weight, colored/saturated by P&L%, capped ±10%) — Phase 4, closed after 1 UAT gap-closure round (label visibility was gated on a fixed rectangle threshold instead of the actual text extent; replaced with a measured-glyph-width fit test)
+- ✓ P&L line chart from `portfolio_snapshots` — Phase 4, closed after 1 UAT gap-closure round (unbounded snapshot history + a categorical axis made the line read as a bold/busy ink band at real data volume; bounded the backend read, capped the frontend request, and switched to a time-scaled numeric axis)
 - [ ] Multi-stage Dockerfile (Node build → Python runtime), single container, port 8000, volume-mounted SQLite
 - [ ] Start/stop scripts for macOS/Linux (bash) and Windows (PowerShell), idempotent
 - [ ] `.env.example` committed
@@ -87,6 +84,8 @@ A user can watch live prices, trade a simulated portfolio, and have an AI copilo
 | Client-side price-cell flash triggers on the cell's own last-rendered price (a `useRef`), never on the SSE tick's `previous_price` field | `PriceCache.update()` keeps `previous_price` stale-but-different forever after the first real move on an unchanged-price heartbeat, so a `previous_price`-based trigger would flash on every 0.5s heartbeat forever | ✓ Validated by Phase 2 — verified correct by code review, phase verification, and live 20+-second UAT observation (test 5) |
 | Use `openrouter/openrouter/free` instead of root PLAN.md §9's specified `openrouter/openai/gpt-oss-120b` | The specified model returned HTTP 402 (insufficient credits) on the very first live call; the free router was the only working path | ✓ Validated by Phase 3 — user-approved Rule 4 deviation (03-01-SUMMARY.md), re-confirmed and hardened around (not reverted) by every later gap-closure plan (03-06 failover, 03-08 sign-convention prompting) |
 | Normalize each LLM-proposed trade/watchlist item exactly once per loop iteration and reuse that single result for validation, execution, and outcome annotation, rather than deriving the normalized value separately at each of those three points | A confirmed live data-loss bug (G-03-6): the validator's normalized `" add".strip().lower()` passed, but the executor's separate `.lower()`-only re-derivation didn't match `"add"`, so it silently fell through to `remove_watchlist_ticker()` while reporting `outcome=executed` | ✓ Validated by Phase 3 (03-08) — structurally prevents the whole class of validator/executor divergence, not just the one reported instance |
+| Bound `portfolio_snapshots` reads at the query layer (`rowid DESC LIMIT` + reverse, route-validated `limit`) rather than pruning the table | UAT reported the Portfolio Value chart as "busy"; root cause was ~2094 unbounded rows drawn into a ~126px plot, not stroke width. PLAN.md §7 explicitly accepts unbounded row growth as a demo-scale tradeoff — the fix had to leave storage alone and window only the read/render path | ✓ Validated by Phase 4 (04-07) — backend TDD tracer added the first genuinely behavioral (non-structural-grep) test coverage in this phase; re-scopes threat T-04-12 from `accept` to `mitigate` |
+| Opt Recharts-based mini-charts (Sparkline) out of the library's default `accessibilityLayer`, but keep it on for standalone panels (MainChart, PnlHistoryChart) with an explicit themed focus ring | Recharts 3.x makes every chart focusable by default; nesting one inside an already-focusable `WatchlistRow` created a duplicate tab stop and a broken-looking default focus ring, but standalone charts still need arrow-key tooltip navigation | ✓ Validated by Phase 4 (04-05) — live keyboard-traversal check approved by user before the ring/heatmap-never-focuses portion was deferred to end-of-phase UAT (also passed) |
 
 ## Evolution
 
@@ -106,4 +105,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-21 after Phase 3*
+*Last updated: 2026-09-22 after Phase 4*
