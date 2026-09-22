@@ -175,7 +175,11 @@ Plans:
   3. Start/stop scripts exist for macOS/Linux (bash) and Windows (PowerShell), and running either repeatedly is safe (idempotent)
   4. `.env.example` is committed and documents `OPENROUTER_API_KEY`, `MASSIVE_API_KEY`, and `LLM_MOCK`
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Tracer: one multi-stage image serves frontend + API on port 8000 with a bind-mounted SQLite that survives container replacement, plus the guarded static mount, its regression tests, and `.env.example` (wave 1)
+- [ ] 05-02-PLAN.md — Idempotent start/stop scripts for macOS/Linux (bash) and Windows (PowerShell), proven by a live start/re-start/stop/re-stop round trip (wave 2)
 
 ### Phase 6: Test Coverage
 
