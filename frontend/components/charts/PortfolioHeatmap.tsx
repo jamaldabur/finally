@@ -21,15 +21,31 @@ import {
   tileTextColor,
 } from "./chartTheme";
 
-// Label-fit thresholds, measured for a 10px/600 uppercase ticker (up to five
-// glyphs, roughly 36px wide) inside the 8px inset on each side. Tune at UAT.
-// The percentage drops first (needs both lines and a wider run), the ticker
-// second; a label is drawn whole or not at all, never clipped.
-const TICKER_MIN_WIDTH = 52;
+// Per-glyph advance estimates, measured live in this app at fontSize 10 /
+// fontWeight 600 with this app's own font stack (getComputedTextLength() on
+// real tile text, see .planning/debug/heatmap-tile-pct-label-missing.md T5).
+// An uppercase ticker glyph advances 6.0-7.0px; a digit, sign or percent
+// sign advances 5.1-5.7px. Each constant is pinned to the TOP of its
+// measured range rather than the middle: an estimate that under-reports
+// would let a label overflow its tile, and the UI-SPEC is explicit that
+// text is never clipped, so erring high costs at most an occasional early
+// drop while erring low produces the one outcome the spec forbids.
+const TICKER_GLYPH_ADVANCE = 7;
+const PCT_GLYPH_ADVANCE = 6;
 const TICKER_MIN_HEIGHT = 26;
-const PCT_MIN_WIDTH = 64;
 const PCT_MIN_HEIGHT = 42;
 const TILE_INSET = 8;
+
+/**
+ * Whether `label` fits inside a tile of the given `width`, at the supplied
+ * per-glyph advance. The drawn text starts one TILE_INSET in from the left;
+ * doubling the inset here reserves the same margin on the right, which is
+ * what keeps a label from running up against the tile's own 2px separator
+ * stroke rather than actually reaching the tile's far edge.
+ */
+function labelFits(label: string, width: number, glyphAdvance: number): boolean {
+  return width - 2 * TILE_INSET >= label.length * glyphAdvance;
+}
 
 const LEGEND_STEPS = 15;
 // Left to right: full loss -> neutral -> full gain.
@@ -49,6 +65,11 @@ type TileProps = {
 
 function Tile({ x = 0, y = 0, width = 0, height = 0, ticker, pct_change }: TileProps) {
   if (ticker === undefined || pct_change === undefined) return <g />;
+  const pctLabel = formatPercent(pct_change);
+  const showTicker =
+    labelFits(ticker, width, TICKER_GLYPH_ADVANCE) && height >= TICKER_MIN_HEIGHT;
+  const showPct =
+    labelFits(pctLabel, width, PCT_GLYPH_ADVANCE) && height >= PCT_MIN_HEIGHT;
   return (
     <g>
       <rect
@@ -60,7 +81,7 @@ function Tile({ x = 0, y = 0, width = 0, height = 0, ticker, pct_change }: TileP
         stroke="var(--color-terminal-panel)"
         strokeWidth={2}
       />
-      {width >= TICKER_MIN_WIDTH && height >= TICKER_MIN_HEIGHT && (
+      {showTicker && (
         <text
           x={x + TILE_INSET}
           y={y + TILE_INSET + 10}
@@ -71,7 +92,7 @@ function Tile({ x = 0, y = 0, width = 0, height = 0, ticker, pct_change }: TileP
           {ticker}
         </text>
       )}
-      {width >= PCT_MIN_WIDTH && height >= PCT_MIN_HEIGHT && (
+      {showPct && (
         <text
           x={x + TILE_INSET}
           y={y + TILE_INSET + 24}
@@ -79,7 +100,7 @@ function Tile({ x = 0, y = 0, width = 0, height = 0, ticker, pct_change }: TileP
           fontWeight={600}
           fill={tileTextColor(pct_change)}
         >
-          {formatPercent(pct_change)}
+          {pctLabel}
         </text>
       )}
     </g>
