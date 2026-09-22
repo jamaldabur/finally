@@ -32,8 +32,15 @@ import {
 // drop while erring low produces the one outcome the spec forbids.
 const TICKER_GLYPH_ADVANCE = 7;
 const PCT_GLYPH_ADVANCE = 6;
+// The two-line label block starts one TILE_INSET down from the tile top,
+// the second line's baseline sits 24px below that, and a 10px glyph
+// descends about 2px past its baseline — about 34px of real need, rounded
+// to 36 for a little breathing room above the tile's bottom edge.
+// TICKER_MIN_HEIGHT stays at 26: the same arithmetic for a single line
+// lands near 24 and no observed tile ever failed on it, so changing it
+// would be churn without evidence behind it.
 const TICKER_MIN_HEIGHT = 26;
-const PCT_MIN_HEIGHT = 42;
+const PCT_MIN_HEIGHT = 36;
 const TILE_INSET = 8;
 
 /**
@@ -68,8 +75,17 @@ function Tile({ x = 0, y = 0, width = 0, height = 0, ticker, pct_change }: TileP
   const pctLabel = formatPercent(pct_change);
   const showTicker =
     labelFits(ticker, width, TICKER_GLYPH_ADVANCE) && height >= TICKER_MIN_HEIGHT;
+  // Structurally dependent on showTicker, not just incidentally stricter:
+  // the UI-SPEC drops the percentage first, then the ticker. Now that each
+  // label is measured against its own string, a short percentage could in
+  // principle clear its bar on a tile whose (longer) ticker misses its own
+  // bar — leaving a bare signed number with nothing identifying it. Gating
+  // on showTicker in addition to the percentage's own fit/height checks
+  // keeps the spec'd drop order structural rather than incidental.
   const showPct =
-    labelFits(pctLabel, width, PCT_GLYPH_ADVANCE) && height >= PCT_MIN_HEIGHT;
+    showTicker &&
+    labelFits(pctLabel, width, PCT_GLYPH_ADVANCE) &&
+    height >= PCT_MIN_HEIGHT;
   return (
     <g>
       <rect
