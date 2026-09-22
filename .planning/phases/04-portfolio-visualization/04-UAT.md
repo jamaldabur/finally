@@ -119,12 +119,3 @@ blocked: 0
   missing:
     - "Same fix as G-04-2a (accessibilityLayer={false} / tabIndex={-1}) - verify the outline disappears once the sparkline is no longer focusable"
   debug_session: ".planning/debug/keyboard-activation-watchlist-row.md"
-
-- gap_id: G-04-2b
-  truth: "Watchlist sparklines keep drawing correctly (Test 1 passed earlier; reported broken while testing row selection)"
-  status: failed
-  reason: "User reported: the little graph of stocks in watchlist is broken"
-  severity: major
-  test: 2
-  artifacts: []
-  missing: []
