@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Backend Trading Engine** - Complete DB schema, portfolio state, trade execution, and watchlist mutation behind REST endpoints (completed 2026-09-16)
 - [x] **Phase 2: Core Trading UI** - Minimal Next.js frontend wiring watchlist, trade bar, positions, and header to the live backend (completed 2026-09-17)
 - [x] **Phase 3: AI Chat Copilot** - LLM chat assistant that analyzes the portfolio and auto-executes trades/watchlist changes (completed 2026-09-21)
-- [ ] **Phase 4: Portfolio Visualization** - Sparklines, main chart, portfolio heatmap, and P&L history chart
+- [x] **Phase 4: Portfolio Visualization** - Sparklines, main chart, portfolio heatmap, and P&L history chart (completed 2026-09-22)
 - [ ] **Phase 5: Docker Packaging & Deployment** - Single-container multi-stage build with volume-mounted SQLite and start/stop scripts
 - [ ] **Phase 6: Test Coverage** - Backend unit, frontend unit, and Playwright E2E suites covering the full trading loop
 
@@ -136,7 +136,7 @@ Plans:
   3. The portfolio heatmap sizes rectangles by position weight and colors/saturates them by unrealized P&L%, capped at ±10%
   4. A P&L line chart shows total portfolio value over time, sourced from `portfolio_snapshots`
 
-**Plans:** 7/7 plans executed
+**Plans:** 7/7 plans complete
 **UI hint**: yes
 
 Plans:
@@ -203,6 +203,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Backend Trading Engine | 4/4 | Complete    | 2026-09-16 |
 | 2. Core Trading UI | 3/3 | Complete    | 2026-09-17 |
 | 3. AI Chat Copilot | 8/8 | Complete    | 2026-09-21 |
-| 4. Portfolio Visualization | 7/7 | In Progress|  |
+| 4. Portfolio Visualization | 7/7 | Complete    | 2026-09-22 |
 | 5. Docker Packaging & Deployment | TBD | Not started | - |
 | 6. Test Coverage | TBD | Not started | - |

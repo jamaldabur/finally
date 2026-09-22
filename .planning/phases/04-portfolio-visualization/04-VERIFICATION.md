@@ -1,10 +1,11 @@
 ---
 phase: 04-portfolio-visualization
 verified: 2026-09-22T12:00:00Z
-status: human_needed
+status: passed
 score: 4/4 roadmap success criteria structurally verified; 4/4 UAT gaps closed in codebase
 behavior_unverified: 0
 covered_files:
+
   - ".planning/REQUIREMENTS.md"
   - ".planning/phases/04-portfolio-visualization/04-01-PLAN.md"
   - ".planning/phases/04-portfolio-visualization/04-01-SUMMARY.md"
@@ -32,6 +33,7 @@ covered_files:
   - "frontend/components/watchlist/WatchlistRow.tsx"
   - "frontend/lib/api.ts"
   - "frontend/lib/portfolioHistoryStore.tsx"
+
 covered_digest: "v1:sha256:a697a8f767bcf6ca5ad646891b8bcb1d0e0c2476ae275263afdd2d3a4cc0fd43"
 overrides_applied: 0
 re_verification:
@@ -45,6 +47,7 @@ re_verification:
   gaps_remaining: []
   regressions: []
 human_verification:
+
   - test: "With the app running and >=3 positions of differing weight held (include one beyond +/-10%), resize the browser to ~1280px, ~1440px and ~1920px wide"
     expected: "Every tile with genuine room shows both ticker and percentage (the previously-blank NVDA-style narrow tile now shows its %); labels degrade percentage-first then ticker as tiles narrow; no percentage ever appears without its ticker above it; no label overlaps a neighbour or is cut off"
     why_human: "Rendered SVG text-fit outcome at real viewport widths; 04-06-SUMMARY explicitly records this human-check as not executed by the autonomous run"
