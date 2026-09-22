@@ -301,6 +301,63 @@ def test_get_portfolio_history_returns_snapshots(client: TestClient) -> None:
     assert recorded_ats == sorted(recorded_ats)
 
 
+def test_get_portfolio_history_default_limit_returns_all_when_below_default(
+    client: TestClient,
+) -> None:
+    # The snapshot loop already records one row at startup (see
+    # test_trade_records_an_immediate_snapshot's comment); a handful more
+    # trades stays far below DEFAULT_SNAPSHOT_LIMIT, so omitting the query
+    # parameter must return every recorded row, oldest-first, same shape.
+    _seed_price(client, "CSCO", 100.0)
+    client.post("/api/portfolio/trade", json={"ticker": "CSCO", "side": "buy", "quantity": 1})
+    client.post("/api/portfolio/trade", json={"ticker": "CSCO", "side": "sell", "quantity": 1})
+
+    resp = client.get("/api/portfolio/history")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body["snapshots"]) >= 2
+    recorded_ats = [s["recorded_at"] for s in body["snapshots"]]
+    assert recorded_ats == sorted(recorded_ats)
+
+
+def test_get_portfolio_history_explicit_limit_returns_most_recent(
+    client: TestClient,
+) -> None:
+    _seed_price(client, "CSCO", 100.0)
+    for _ in range(3):
+        client.post(
+            "/api/portfolio/trade", json={"ticker": "CSCO", "side": "buy", "quantity": 1}
+        )
+
+    full = client.get("/api/portfolio/history").json()["snapshots"]
+    windowed_resp = client.get("/api/portfolio/history?limit=2")
+
+    assert windowed_resp.status_code == 200
+    windowed = windowed_resp.json()["snapshots"]
+    assert len(windowed) == 2
+    # The most recent two, oldest-first — the tail of the unwindowed series.
+    assert windowed == full[-2:]
+
+
+def test_get_portfolio_history_zero_limit_is_422(client: TestClient) -> None:
+    resp = client.get("/api/portfolio/history?limit=0")
+
+    assert resp.status_code == 422
+
+
+def test_get_portfolio_history_negative_limit_is_422(client: TestClient) -> None:
+    resp = client.get("/api/portfolio/history?limit=-1")
+
+    assert resp.status_code == 422
+
+
+def test_get_portfolio_history_over_max_limit_is_422(client: TestClient) -> None:
+    resp = client.get("/api/portfolio/history?limit=2001")
+
+    assert resp.status_code == 422
+
+
 def test_rejected_buy_leaves_no_partial_write(client: TestClient) -> None:
     _seed_price(client, "CSCO", 100.0)
     first_resp = client.post(
