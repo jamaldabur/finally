@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Portfolio Visualization
 status: executing
-stopped_at: Completed 04-05-PLAN.md
-last_updated: "2026-09-22T10:32:16.843Z"
+stopped_at: Completed 04-06-PLAN.md
+last_updated: "2026-09-22T10:40:11.350Z"
 last_activity: 2026-09-22
 last_activity_desc: Phase 04 execution started
-state_head: 984d42ebc54f859fd7ee4f977a9c73c67bc6ab35
+state_head: aa736c0b3c0deae517186db02f35d004a384a0f8
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 22
-  completed_plans: 20
+  completed_plans: 21
   percent: 50
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 ## Current Position
 
 Phase: 04 (Portfolio Visualization) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Ready to execute
 Last activity: 2026-09-22 — Phase 04 execution started
 
@@ -78,6 +78,7 @@ Progress: [█████░░░░░] 50%
 | Phase 04 P01 | 15min | 2 tasks | 6 files |
 | Phase 04 P04 | 15min | 2 tasks | 6 files |
 | Phase 04 P05 | 15min | 2 tasks | 3 files |
+| Phase 04 P04-06 | 12min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,8 @@ Recent decisions affecting current work:
 - [Phase 04]: [Phase 04][04-05]: Sparkline opts out via accessibilityLayer={false} rather than tabIndex={-1} — removes role="application" and Recharts' keydown middleware too, not just the tab stop
 - [Phase 04]: [Phase 04][04-05]: MainChart and PnlHistoryChart deliberately keep their focusable chart surface (standalone panels, keyboard tooltip access); PortfolioHeatmap verified structurally focus-less via Treemap's Surface (not RootSurface) rendering
 - [Phase 04]: [Phase 04][04-05]: Chart focus ring implemented as one shared .recharts-surface:focus-visible global CSS rule (2px solid var(--color-terminal-text), 2px offset), matching the existing .tabular-nums one-rule-reaches-every-instance pattern
+- [Phase 04]: [Phase 04][04-06]: Split the two-task heatmap label-fit fix into two separate commits despite touching the same function, so PCT_MIN_HEIGHT/drop-order structure changes (Task 2) land distinctly from the labelFits() text-fit gate (Task 1)
+- [Phase 04]: [Phase 04][04-06]: Per-glyph advance constants (ticker=7, pct=6) pinned to the top of the measured live range rather than the middle, since under-reporting risks label overflow which the UI-SPEC forbids outright
 
 ### Pending Todos
 
@@ -148,6 +151,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-22T10:32:16.400Z
-Stopped at: Completed 04-05-PLAN.md
+Last session: 2026-09-22T10:40:10.857Z
+Stopped at: Completed 04-06-PLAN.md
 Resume file: None
