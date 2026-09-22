@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Docker Packaging & Deployment
-status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-09-22T15:56:57.690Z"
+status: verifying
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-09-22T16:23:47.804Z"
 last_activity: 2026-09-22
 last_activity_desc: Phase 05 execution started
-state_head: 808e41837b8849cd8f88659d962f1d93a586748e
+state_head: 2932d1e8fe02a9451a8fddc7871ee90904b5e906
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 24
-  completed_plans: 23
+  completed_plans: 24
   percent: 67
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 
 Phase: 05 (Docker Packaging & Deployment) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-09-22 — Phase 05 execution started
 
 Progress: [███████░░░] 67%
@@ -82,6 +82,7 @@ Progress: [███████░░░] 67%
 | Phase 04 P04-06 | 12min | 2 tasks | 1 files |
 | Phase 04 P04-07 | 15min | 3 tasks | 7 files |
 | Phase 05 P01 | 25min | 3 tasks | 5 files |
+| Phase 05 P02 | 35min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -137,6 +138,9 @@ Recent decisions affecting current work:
 - [Phase 04]: [Phase 04][04-07]: Server-side window (SQL LIMIT + validated route param) chosen over client-side trim or downsample — also stops the response body's unbounded growth, converting T-04-12 from accepted to mitigated
 - [Phase 05]: [Phase 05][05-01]: P-01 uv-acquisition strategy resolved with no substitution — ghcr.io/astral-sh/uv:0.10.9 (matching the locally installed uv version) pulled and built successfully on the first attempt
 - [Phase 05]: [Phase 05][05-01]: Bind-mount host path form proven on this Windows/Git-Bash/Docker-Desktop-WSL2 machine is 'pwd -W' plus MSYS_NO_PATHCONV=1 on docker run, not bare pwd — recorded for Plan 05-02's scripts to reuse
+- [Phase 05]: [Phase 05][05-02]: PowerShell scripts kept to plain ASCII only -- Windows PowerShell 5.1's -File invocation reads a BOM-less script via the system codepage, not UTF-8, and an em-dash/section-sign corrupted live execution invisibly to the AST-based structural verify gate
+- [Phase 05]: [Phase 05][05-02]: docker rm -f can return before the daemon releases a container name (observed live for a container with an active HEALTHCHECK) -- both start scripts now poll until the name is actually gone before any build/run step proceeds
+- [Phase 05]: [Phase 05][05-02]: PowerShell docker calls always pass args via an explicit -DockerArgs array bound to a named parameter -- a bare -p token partial-matches the Invoke-Docker helper's implicit -PipelineVariable common parameter and collides with docker's own -p (publish port) flag
 
 ### Pending Todos
 
@@ -160,6 +164,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-22T15:56:57.318Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-09-22T16:23:47.375Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None

@@ -175,7 +175,7 @@ Plans:
   3. Start/stop scripts exist for macOS/Linux (bash) and Windows (PowerShell), and running either repeatedly is safe (idempotent)
   4. `.env.example` is committed and documents `OPENROUTER_API_KEY`, `MASSIVE_API_KEY`, and `LLM_MOCK`
 
-**Plans**: 1/2 plans executed
+**Plans**: 2/2 plans executed
 
 Plans:
 **Wave 1**
@@ -184,7 +184,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 05-02-PLAN.md — Idempotent start/stop scripts for macOS/Linux (bash) and Windows (PowerShell), proven by a live start/re-start/stop/re-stop round trip (wave 2)
+- [x] 05-02-PLAN.md — Idempotent start/stop scripts for macOS/Linux (bash) and Windows (PowerShell), proven by a live start/re-start/stop/re-stop round trip (wave 2)
 
 ### Phase 6: Test Coverage
 
@@ -213,5 +213,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Core Trading UI | 3/3 | Complete    | 2026-09-17 |
 | 3. AI Chat Copilot | 8/8 | Complete    | 2026-09-21 |
 | 4. Portfolio Visualization | 7/7 | Complete    | 2026-09-22 |
-| 5. Docker Packaging & Deployment | 1/2 | In Progress|  |
+| 5. Docker Packaging & Deployment | 2/2 | In Progress|  |
 | 6. Test Coverage | TBD | Not started | - |
