@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Portfolio Visualization
-status: verifying
-stopped_at: Completed 04-04-PLAN.md
-last_updated: "2026-09-21T21:38:36.765Z"
+status: executing
+stopped_at: Completed 04-05-PLAN.md
+last_updated: "2026-09-22T10:32:16.843Z"
 last_activity: 2026-09-22
 last_activity_desc: Phase 04 execution started
-state_head: 4d13bae468c2190d83c81f809bde7cdc38c3dc4f
+state_head: 984d42ebc54f859fd7ee4f977a9c73c67bc6ab35
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 19
-  completed_plans: 19
+  total_plans: 22
+  completed_plans: 20
   percent: 50
 ---
 
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-09-21)
 ## Current Position
 
 Phase: 04 (Portfolio Visualization) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
+Plan: 2 of 7
+Status: Ready to execute
 Last activity: 2026-09-22 — Phase 04 execution started
 
 Progress: [█████░░░░░] 50%
@@ -77,6 +77,7 @@ Progress: [█████░░░░░] 50%
 | Phase 03 P07 | 20min | 2 tasks | 2 files |
 | Phase 04 P01 | 15min | 2 tasks | 6 files |
 | Phase 04 P04 | 15min | 2 tasks | 6 files |
+| Phase 04 P05 | 15min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -122,6 +123,9 @@ Recent decisions affecting current work:
 - [Phase 03]: [Phase 03][Plan 03-07]: Removed h-full from ChatPanel's wrapper rather than adding a compensating align-self/inline-style override — the debug session proved that combination still disables flex stretch, since a non-auto computed cross size disables it outright rather than merely leaving it unrequested
 - [Phase 03]: [Phase 03][Plan 03-07]: Left frontend/app/page.tsx untouched — the rail height fix is fully contained in ChatPanel's own wrapper; the adjacent long-conversation page-scroll defect needs a separate definite-height-chain fix, explicitly out of scope
 - [Phase 04]: 04-01: priceHistory lives in PriceStoreProvider; recharts is the chart engine
+- [Phase 04]: [Phase 04][04-05]: Sparkline opts out via accessibilityLayer={false} rather than tabIndex={-1} — removes role="application" and Recharts' keydown middleware too, not just the tab stop
+- [Phase 04]: [Phase 04][04-05]: MainChart and PnlHistoryChart deliberately keep their focusable chart surface (standalone panels, keyboard tooltip access); PortfolioHeatmap verified structurally focus-less via Treemap's Surface (not RootSurface) rendering
+- [Phase 04]: [Phase 04][04-05]: Chart focus ring implemented as one shared .recharts-surface:focus-visible global CSS rule (2px solid var(--color-terminal-text), 2px offset), matching the existing .tabular-nums one-rule-reaches-every-instance pattern
 
 ### Pending Todos
 
@@ -144,6 +148,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-21T21:38:36.529Z
-Stopped at: Completed 04-04-PLAN.md
+Last session: 2026-09-22T10:32:16.400Z
+Stopped at: Completed 04-05-PLAN.md
 Resume file: None
