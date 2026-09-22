@@ -27,6 +27,15 @@ CREATE TABLE IF NOT EXISTS portfolio_snapshots (
 );
 """
 
+# What a caller gets when it expresses no preference on how many snapshots
+# to read back (04-07-PLAN.md Task 1, closing gap G-04-4). The ceiling a
+# caller may explicitly ask for is MAX_SNAPSHOT_LIMIT, enforced by the route
+# layer's request validation, not here. Neither constant prunes anything —
+# the table itself stays append-only and unbounded per PLAN.md §7; they
+# bound only what one read hands back.
+DEFAULT_SNAPSHOT_LIMIT = 500
+MAX_SNAPSHOT_LIMIT = 2000
+
 
 @dataclass(frozen=True)
 class PortfolioSnapshot:
@@ -41,9 +50,13 @@ def _init_db_sync() -> None:
 
 def _insert_snapshot_sync(total_value: float, user_id: str) -> PortfolioSnapshot:
     snapshot_id = str(uuid.uuid4())
-    # Microsecond-resolution ISO-8601 timestamps give consecutive inserts
-    # distinct, monotonically increasing recorded_at strings, so the text
-    # sort in _get_snapshots_sync matches chronological order.
+    # ISO-8601 timestamp for display/tooltip purposes only. Read order no
+    # longer depends on this string being distinct or monotonically
+    # increasing between inserts — see _get_snapshots_sync's rowid-based
+    # ordering below. On some platforms datetime.now()'s effective clock
+    # resolution is coarser than microseconds, so back-to-back inserts (the
+    # 30-second recorder and an on-trade insert) can legitimately share one
+    # recorded_at string.
     recorded_at = datetime.now(timezone.utc).isoformat()
     with _connect() as conn:
         conn.execute(
@@ -56,16 +69,29 @@ def _insert_snapshot_sync(total_value: float, user_id: str) -> PortfolioSnapshot
     return PortfolioSnapshot(total_value=total_value, recorded_at=recorded_at)
 
 
-def _get_snapshots_sync(user_id: str) -> list[PortfolioSnapshot]:
+def _get_snapshots_sync(user_id: str, limit: int) -> list[PortfolioSnapshot]:
+    # Select the most recent `limit` rows by insertion order (rowid), not by
+    # recorded_at: the 30-second recorder and the insert that follows a
+    # trade can write inside the same moment and carry an identical ISO
+    # timestamp, which would make a descending sort on that column pick an
+    # arbitrary subset at the window boundary. The table is not
+    # WITHOUT ROWID, so rowid is available with no schema change and is
+    # monotonic per insert — mirrors chat_messages.py's identical fix for
+    # the same tie condition. Reverse the DESC-ordered result so the
+    # function still returns oldest-first, matching every downstream
+    # consumer's ascending-order contract.
     with _connect() as conn:
         rows = conn.execute(
             """
             SELECT total_value, recorded_at FROM portfolio_snapshots
-            WHERE user_id = ? ORDER BY recorded_at
+            WHERE user_id = ? ORDER BY rowid DESC LIMIT ?
             """,
-            (user_id,),
+            (user_id, limit),
         ).fetchall()
-    return [PortfolioSnapshot(total_value=row[0], recorded_at=row[1]) for row in rows]
+    snapshots = [
+        PortfolioSnapshot(total_value=row[0], recorded_at=row[1]) for row in rows
+    ]
+    return list(reversed(snapshots))
 
 
 async def init_db() -> None:
@@ -81,5 +107,11 @@ async def insert_snapshot(
     return await asyncio.to_thread(_insert_snapshot_sync, total_value, user_id)
 
 
-async def get_snapshots(user_id: str = DEFAULT_USER_ID) -> list[PortfolioSnapshot]:
-    return await asyncio.to_thread(_get_snapshots_sync, user_id)
+async def get_snapshots(
+    user_id: str = DEFAULT_USER_ID, limit: int = DEFAULT_SNAPSHOT_LIMIT
+) -> list[PortfolioSnapshot]:
+    """Return at most `limit` snapshots — the most recently recorded ones,
+    ordered oldest-first. No delete, prune or aggregate function exists on
+    this module by design (PLAN.md §7); this bounds only what a read hands
+    back, never what is stored."""
+    return await asyncio.to_thread(_get_snapshots_sync, user_id, limit)

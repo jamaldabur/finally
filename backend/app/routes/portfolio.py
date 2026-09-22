@@ -12,10 +12,11 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from ..db import portfolio_snapshots
+from ..db.portfolio_snapshots import DEFAULT_SNAPSHOT_LIMIT, MAX_SNAPSHOT_LIMIT
 from ..portfolio.service import compute_portfolio_view, execute_trade
 
 router = APIRouter()
@@ -100,8 +101,15 @@ async def get_portfolio(request: Request) -> PortfolioResponse:
 
 
 @router.get("/api/portfolio/history")
-async def get_portfolio_history() -> PortfolioHistoryResponse:
-    snapshots = await portfolio_snapshots.get_snapshots()
+async def get_portfolio_history(
+    limit: int = Query(default=DEFAULT_SNAPSHOT_LIMIT, ge=1, le=MAX_SNAPSHOT_LIMIT),
+) -> PortfolioHistoryResponse:
+    """Return a bounded window of the most recent snapshots, oldest-first.
+    Omitting `limit` yields DEFAULT_SNAPSHOT_LIMIT. FastAPI's own Query
+    validation rejects an out-of-range value as a 422 before this handler
+    runs; the bounded read in get_snapshots() is the single place the
+    window is applied — this handler never slices the result itself."""
+    snapshots = await portfolio_snapshots.get_snapshots(limit=limit)
 
     return PortfolioHistoryResponse(
         snapshots=[
