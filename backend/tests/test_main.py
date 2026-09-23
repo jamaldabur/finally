@@ -1,9 +1,13 @@
+import asyncio
+import threading
+
 import httpx
 import respx
 from fastapi.testclient import TestClient
 
 from app import main
 from app.main import create_app
+from app.market.base import MarketDataSource
 from app.market.cache import PriceCache
 from app.market.massive import MassiveMarketDataSource
 from app.market.simulator import SimulatorMarketDataSource
@@ -97,3 +101,56 @@ def test_api_route_wins_over_static_mount(monkeypatch, tmp_path):
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+class _ParkedSource(MarketDataSource):
+    """Fake MarketDataSource whose get_prices() parks inside an await for the
+    lifetime of the test, so stop() can observe the exact instant shutdown
+    calls it — before or after the update loop has actually unwound (WR-01,
+    05-REVIEW.md)."""
+
+    def __init__(self) -> None:
+        self.in_flight: bool = False
+        self.entered = threading.Event()
+        self.in_flight_at_stop: bool | None = None
+        self.snapshot_task: asyncio.Task[None] | None = None
+        self.snapshot_done_at_stop: bool | None = None
+
+    async def start(self) -> None:
+        pass
+
+    async def stop(self) -> None:
+        self.in_flight_at_stop = self.in_flight
+        if self.snapshot_task is not None:
+            self.snapshot_done_at_stop = self.snapshot_task.done()
+
+    async def get_prices(self, tickers: list[str]) -> dict[str, float]:
+        self.in_flight = True
+        self.entered.set()
+        try:
+            await asyncio.sleep(3600)
+        finally:
+            self.in_flight = False
+        return {}
+
+    async def is_valid_ticker(self, ticker: str) -> bool:
+        return True
+
+
+def test_lifespan_awaits_background_tasks_before_stopping_source(monkeypatch, tmp_path):
+    # WR-01: Task.cancel() only schedules delivery of CancelledError at the
+    # task's next suspension point; without awaiting the cancelled tasks,
+    # MassiveMarketDataSource.stop() closes the shared httpx.AsyncClient
+    # while run_update_loop may still be inside get_prices() on it.
+    monkeypatch.delenv("MASSIVE_API_KEY", raising=False)
+
+    fake = _ParkedSource()
+    monkeypatch.setattr(main, "build_market_data_source", lambda: fake)
+
+    app = main.create_app()
+    with TestClient(app):
+        assert fake.entered.wait(timeout=5) is True
+        fake.snapshot_task = app.state.snapshot_task
+
+    assert fake.in_flight_at_stop is False
+    assert fake.snapshot_done_at_stop is True
