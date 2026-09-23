@@ -175,7 +175,7 @@ Plans:
   3. Start/stop scripts exist for macOS/Linux (bash) and Windows (PowerShell), and running either repeatedly is safe (idempotent)
   4. `.env.example` is committed and documents `OPENROUTER_API_KEY`, `MASSIVE_API_KEY`, and `LLM_MOCK`
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans executed
 
 Plans:
 **Wave 1**
@@ -188,7 +188,7 @@ Plans:
 
 **Wave 3** *(gap closure — verification blocker CR-01 plus review warnings WR-01/WR-02/WR-03; blocked on Waves 1-2)*
 
-- [ ] 05-03-PLAN.md — Gap closure CR-01/WR-01/WR-02/WR-03: keep every dotenv variant out of the Docker build context (proven by sentinel-seeded probes of the context, the frontend-build layer and the runtime image), await background tasks before stopping the market source on shutdown, bound start_mac.sh's per-attempt readiness probe, and give start_windows.ps1 plain one-line failure messages (wave 3)
+- [x] 05-03-PLAN.md — Gap closure CR-01/WR-01/WR-02/WR-03: keep every dotenv variant out of the Docker build context (proven by sentinel-seeded probes of the context, the frontend-build layer and the runtime image), await background tasks before stopping the market source on shutdown, bound start_mac.sh's per-attempt readiness probe, and give start_windows.ps1 plain one-line failure messages (wave 3)
 
 ### Phase 6: Test Coverage
 
@@ -217,5 +217,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Core Trading UI | 3/3 | Complete    | 2026-09-17 |
 | 3. AI Chat Copilot | 8/8 | Complete    | 2026-09-21 |
 | 4. Portfolio Visualization | 7/7 | Complete    | 2026-09-22 |
-| 5. Docker Packaging & Deployment | 2/3 | In Progress|  |
+| 5. Docker Packaging & Deployment | 3/3 | In Progress|  |
 | 6. Test Coverage | TBD | Not started | - |
