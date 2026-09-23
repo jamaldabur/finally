@@ -12,5 +12,20 @@
 frontend/out
 db/*.db
 db/*.db-journal
-.env
+# Unlike .gitignore, Docker anchors a slash-free pattern to the context
+# root only, so a bare `.env` line never covered `.env.<suffix>` variants
+# or a bare dotenv file below the root (05-REVIEW.md CR-01). The `**/`
+# prefix matches zero or more directories, covering every depth, and
+# protects both whole-directory copies in the Dockerfile (`COPY frontend/
+# ./` in frontend-build, `COPY backend/app ./app` in runtime). It also
+# keeps `next build` inside the image hermetic: Next.js loads `.env.local`
+# and `.env.production*` during a production build and inlines any
+# NEXT_PUBLIC_* value into the shipped static bundle, so a contributor's
+# local file could otherwise change what the image serves. Order matters:
+# Docker applies .dockerignore rules last-match-wins, so the re-include
+# must come after the variant exclusion or the committed templates would
+# be dropped too.
+**/.env
+**/.env.*
+!**/.env.example
 *.log
