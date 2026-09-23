@@ -89,6 +89,14 @@ async def lifespan(app: FastAPI):
 
     update_task.cancel()
     snapshot_task.cancel()
+    # cancel() only schedules delivery of CancelledError at each task's next
+    # suspension point; awaiting both tasks guarantees neither is still
+    # inside source.get_prices() when source.stop() releases the client they
+    # share (WR-01, 05-REVIEW.md). return_exceptions=True absorbs the
+    # CancelledError each task ends with so shutdown proceeds. Neither loop
+    # catches BaseException (see market/loop.py, portfolio/snapshots.py), so
+    # this await cannot hang.
+    await asyncio.gather(update_task, snapshot_task, return_exceptions=True)
     await source.stop()
 
 
