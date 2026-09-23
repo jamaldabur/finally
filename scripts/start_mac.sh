@@ -106,10 +106,14 @@ docker run -d --name "$CONTAINER_NAME" \
   -v "$DB_DIR:/app/db" \
   "$IMAGE_TAG" >/dev/null
 
-# 9. Wait for readiness — roughly forty attempts, one second apart.
+# 9. Wait for readiness — roughly forty attempts, one second apart. Each
+# attempt is capped at 2 seconds, matching start_windows.ps1's -TimeoutSec 2,
+# so a server that accepts the connection but never answers cannot stall a
+# single attempt; the loop is therefore bounded at roughly two minutes in
+# the worst case (forty attempts of at most 2 seconds plus a 1-second sleep).
 READY=false
 for _ in $(seq 1 40); do
-  if curl -fsS "${APP_URL}/api/health" >/dev/null 2>&1; then
+  if curl -fsS --max-time 2 "${APP_URL}/api/health" >/dev/null 2>&1; then
     READY=true
     break
   fi

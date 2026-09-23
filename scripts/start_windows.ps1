@@ -60,10 +60,20 @@ function Remove-FinallyContainer {
     }
 }
 
+# Under $ErrorActionPreference = "Stop", Write-Error raises a terminating
+# error before the next line runs, so PowerShell prints its own error-record
+# block (the script path, an At <file>:<line> position line, and a source
+# excerpt) instead of the intended message, and the exit 1 after it never
+# runs. Writing the line straight to the process's stderr handle is the
+# PowerShell equivalent of the bash launcher's `echo ... >&2` and makes
+# exit 1 reachable again (WR-03, 05-REVIEW.md). Write-Host was rejected
+# because it writes to the information stream, not stderr, breaking parity
+# with the bash script; saving/restoring $ErrorActionPreference still prints
+# the full error record, just without terminating.
 # 2. .env guard (D-09). Existence only - never Get-Content that file.
 $EnvFile = Join-Path $RepoRoot ".env"
 if (-not (Test-Path $EnvFile -PathType Leaf)) {
-    Write-Error "Error: .env not found at $EnvFile`nCopy .env.example to .env and fill in OPENROUTER_API_KEY before starting FinAlly."
+    [Console]::Error.WriteLine("Error: .env not found at $EnvFile`nCopy .env.example to .env and fill in OPENROUTER_API_KEY before starting FinAlly.")
     exit 1
 }
 
@@ -71,7 +81,7 @@ if (-not (Test-Path $EnvFile -PathType Leaf)) {
 # PowerShell exception, so the exit code must be checked explicitly.
 Invoke-Docker -DockerArgs @("info") *> $null
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Error: Docker does not appear to be running. Start Docker Desktop (or the Docker daemon) and try again."
+    [Console]::Error.WriteLine("Error: Docker does not appear to be running. Start Docker Desktop (or the Docker daemon) and try again.")
     exit 1
 }
 
@@ -102,7 +112,7 @@ if ($Build -or $imageMissing) {
     Write-Host "Building $ImageTag - this may take several minutes on a first run."
     Invoke-Docker -DockerArgs @("build", "-t", $ImageTag, $RepoRoot)
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Error: docker build failed."
+        [Console]::Error.WriteLine("Error: docker build failed.")
         exit 1
     }
 }
@@ -126,7 +136,7 @@ $runArgs = @(
 )
 Invoke-Docker -DockerArgs $runArgs *> $null
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Error: docker run failed."
+    [Console]::Error.WriteLine("Error: docker run failed.")
     exit 1
 }
 
@@ -145,7 +155,7 @@ for ($i = 0; $i -lt 40; $i++) {
     Start-Sleep -Seconds 1
 }
 if (-not $ready) {
-    Write-Error "FinAlly's container started but never became healthy.`nCheck the logs with: docker logs $ContainerName"
+    [Console]::Error.WriteLine("FinAlly's container started but never became healthy.`nCheck the logs with: docker logs $ContainerName")
     exit 1
 }
 
