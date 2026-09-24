@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
 current_phase: 05
-current_phase_name: docker-packaging-deployment
+current_phase_name: Docker Packaging & Deployment
 status: executing
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-09-24T10:00:35.147Z"
-last_activity: 2026-09-23
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-09-24T10:16:58.983Z"
+last_activity: 2026-09-24
 last_activity_desc: Phase 05 execution started
-state_head: c502adef91dc93997ffa41b980c745ed76efecbf
+state_head: 93450b2d5d46eba6dab843236cfce72b4711d1c2
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 26
-  completed_plans: 25
+  completed_plans: 26
   percent: 67
 ---
 
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 
 ## Current Position
 
-Phase: 05 (docker-packaging-deployment) — READY TO EXECUTE
-Plan: 2 of 3
+Phase: 05 (Docker Packaging & Deployment) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-09-23 — Phase 05 execution started
+Last activity: 2026-09-24 — Phase 05 execution started
 
 Progress: [███████░░░] 67%
 
@@ -84,6 +84,7 @@ Progress: [███████░░░] 67%
 | Phase 05 P01 | 25min | 3 tasks | 5 files |
 | Phase 05 P02 | 35min | 2 tasks | 4 files |
 | Phase 05 P03 | 30min | 3 tasks | 5 files |
+| Phase 05 P04 | 25min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -143,6 +144,8 @@ Recent decisions affecting current work:
 - [Phase 05]: [Phase 05][05-02]: docker rm -f can return before the daemon releases a container name (observed live for a container with an active HEALTHCHECK) -- both start scripts now poll until the name is actually gone before any build/run step proceeds
 - [Phase 05]: [Phase 05][05-02]: PowerShell docker calls always pass args via an explicit -DockerArgs array bound to a named parameter -- a bare -p token partial-matches the Invoke-Docker helper's implicit -PipelineVariable common parameter and collides with docker's own -p (publish port) flag
 - [Phase 05]: [Phase 05][05-03]: Live round-trip proof required closing the auto-opened FinAlly browser tab (D-08) before stop_windows.ps1 -- its open SSE connection otherwise blocks uvicorn's graceful shutdown past docker stop's 10s grace period (exit 137), a pre-existing SSE characteristic unrelated to the asyncio.gather fix
+- [Phase 05]: [Phase 05][05-04]: P-03 -- Windows launcher's only rebuild spelling is -Build (any case); both double-dash spellings (--build, --Build) are rejected, resolving a conflict between VERIFICATION.md's concrete re-test list and its looser allowed-set phrasing
+- [Phase 05]: [Phase 05][05-04]: Argument validation on both PowerShell launchers moved from a declared switch/empty param() to an explicit step-1 guard over raw $args -- a non-advanced script never raises ParameterBindingException for an unbound token, and powershell.exe's -File parser silently rewrites --build/--Build into -Build, so a declared parameter validated nothing and behaved differently between -File and in-session invocation
 
 ### Pending Todos
 
@@ -166,6 +169,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-23T19:33:32.093Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-09-24T10:16:58.706Z
+Stopped at: Completed 05-04-PLAN.md
 Resume file: None
