@@ -1,28 +1,82 @@
 ---
 phase: 05-docker-packaging-deployment
-reviewed: 2026-09-23T00:00:00Z
+reviewed: 2026-09-24T00:00:00Z
 depth: standard
-files_reviewed: 5
+files_reviewed: 6
 files_reviewed_list:
   - .dockerignore
   - backend/app/main.py
   - backend/tests/test_main.py
   - scripts/start_mac.sh
   - scripts/start_windows.ps1
+  - scripts/stop_windows.ps1
 findings:
-  critical: 0
-  warning: 1
-  info: 1
-  total: 2
+  critical: 1
+  warning: 2
+  info: 2
+  total: 5
 status: issues_found
 ---
 
 # Phase 5: Code Review Report
 
-**Reviewed:** 2026-09-23T00:00:00Z
+**Reviewed:** 2026-09-24T00:00:00Z (2026-09-23T00:00:00Z pass below unchanged; 2026-09-24 pass appended for gap-closure plan 05-04's changed files)
 **Depth:** standard
-**Files Reviewed:** 5
+**Files Reviewed:** 6 (5 original + `scripts/stop_windows.ps1`, newly in scope after 05-04)
 **Status:** issues_found
+
+## 2026-09-24 pass — 05-04's argument-validation guard (scripts/start_windows.ps1, scripts/stop_windows.ps1)
+
+Scoped re-review of the two files gap-closure plan 05-04 modified to close the WR-04 gap below
+(silent acceptance of unrecognised arguments). I independently reproduced every finding live
+against the committed scripts and real `docker.exe` on this machine before recording it — see
+CR-01 and WR-01 immediately below. This section is prepended to preserve the 2026-09-23 pass
+(WR-04 + its 05-04 correction, IN-03) unedited beneath it.
+
+### CR-01 (2026-09-24): A single dash-prefixed, colon-suffixed, valueless token silently bypasses `stop_windows.ps1`'s zero-argument guard, reaching the daemon and (if a container is running) actually stopping it
+
+**File:** `scripts/stop_windows.ps1:36-39`
+**Issue:** The guard is `if ($args.Count -gt 0) { ... exit 1 }`. Under `powershell -File stop_windows.ps1 <token>` invocation, PowerShell's own command-line parser treats any token of the shape `-Name:` (a dash, an identifier, a trailing colon, nothing after it — whether or not `-Name` is a real declared parameter of the script) as colon-syntax parameter binding, and when nothing follows the colon it silently drops the token instead of raising an error or leaving it in `$args`. The result: `$args.Count` is `0`, indistinguishable from true no-argument invocation, and 05-04's guard lets the script fall straight through to the docker daemon query and (if a container named `finally` is running) the actual `docker stop` call — with no error message at all.
+
+Live, reproduced directly against the committed file (independently re-confirmed by the orchestrator, not just the reviewing agent):
+```
+$ powershell -NoProfile -File scripts/stop_windows.ps1 '-Foo:'
+FinAlly is not running.
+exit=0
+```
+Control (no colon) still correctly rejected:
+```
+$ powershell -NoProfile -File scripts/stop_windows.ps1 '-Foo'
+Usage: stop_windows.ps1
+exit=1
+```
+With a container actually running, `-Foo:` was independently confirmed to reach and execute the real `docker stop $ContainerName` call — i.e. this silently and unexpectedly stops the user's running container, worse than a raw error dump because there is no signal anything went wrong. This is exactly the failure class the whole 05-04 initiative exists to close (per its own commit message: "stop_windows.ps1's empty param() accepted any argument the same way it accepted none... so any invocation like `stop_windows.ps1 --help` would have stopped the running app") — just not the shape that was tested; this one narrow shape (a stray or templated/CI-constructed flag resolving to an empty value after a colon, e.g. `-Reason:%REASON%` with `%REASON%` expanding empty) still gets through.
+
+**Fix:** Do not rely on `$args` alone as "the whole of what the caller typed" under `-File`; it demonstrably is not. Reject any `$args` element whose string form ends in `:` immediately (an unbound colon-suffixed token is never a valid empty-argument invocation for either launcher), and/or inspect `[Environment]::GetCommandLineArgs()` / `$MyInvocation.Line` to detect that the caller passed something even when PowerShell's tokenizer swallowed it out of `$args`. Add a regression matrix entry for `-File stop_windows.ps1 '-AnyName:'` (and the `start_windows.ps1` equivalent, WR-01 below) alongside the existing RED/GREEN matrices 05-04 already built — none of them covered a colon-suffixed token.
+
+### WR-01 (2026-09-24): The same colon-suffixed-token gap lets `start_windows.ps1` silently swallow `-Build:` and proceed as a normal (non-rebuild) start instead of rejecting it
+
+**File:** `scripts/start_windows.ps1:87-95`
+**Issue:** Identical root cause to CR-01. Live, independently reconfirmed:
+```
+$ powershell -NoProfile -File scripts/start_windows.ps1 '-Build:'
+FinAlly is running at http://localhost:8000
+exit=0
+```
+`$args.Count` is `0` (the `-Build:` token is dropped by PowerShell's `-File` parser before the script sees it), so the guard's zero-argument branch takes over and the script proceeds as if no argument had been given. Lower severity than CR-01 — it falls back to the already-safe default (no rebuild) rather than triggering an unwanted action — but it breaks the same exact-match contract for a concretely reproducible input.
+**Fix:** Same as CR-01.
+
+### IN-01 (2026-09-24): The step-1 rationale comment describes the old (fixed) `--build` rewrite bug as if it were still true of the current script's behavior under `-File`
+
+**File:** `scripts/start_windows.ps1:76-86`
+**Issue:** The comment reads as an ongoing fact about `-File` parsing in general ("the parser rewrites `--build` into the `-Build` switch"), but that rewrite only ever happened because the *old* code declared `param([switch]$Build)` — a matching declared switch parameter is what `-File` rewrites `--name` into. The current script's `param()` is empty, so `--build` now correctly lands as a literal, rejected token. The comment is accurate as historical justification but could mislead a future maintainer who re-adds a declared parameter into thinking that rewrite risk is categorically retired.
+**Fix:** Reword to make the causality explicit — the rewrite happens for any declared switch parameter whose name collides with a `--`-prefixed input, which is exactly why this script now declares none.
+
+**Threat register note:** T-05-08's "mitigate" disposition in the phase threat model (05-02-PLAN.md, amended by 05-04-PLAN.md) covers argument-handling tampering; CR-01/WR-01 are a mitigation gap in that same control, not a new trust boundary. T-05-10 (stop-script non-destructiveness) and T-05-17 (`stop_windows.ps1` DoS) are also implicated — CR-01's exploit path is precisely an unintended `docker stop` reaching a running container. See `05-SECURITY.md` for the reopened disposition.
+
+---
+
+## 2026-09-23 pass (original, unedited below)
 
 ## Summary
 
