@@ -4,7 +4,7 @@
 # constants, identical step order, identical exit codes. See
 # .planning/phases/05-docker-packaging-deployment/05-02-PLAN.md Task 2.
 
-param([switch]$Build)
+param()
 
 $ErrorActionPreference = "Stop"
 
@@ -70,6 +70,30 @@ function Remove-FinallyContainer {
 # because it writes to the information stream, not stderr, breaking parity
 # with the bash script; saving/restoring $ErrorActionPreference still prints
 # the full error record, just without terminating.
+
+# 1. Argument validation, before anything else.
+#
+# Under `powershell -File` a script without a cmdlet-binding attribute
+# silently collects unknown tokens into $args, and the -File command-line
+# parser rewrites --build into the -Build switch. Under in-session
+# invocation the same --build lands in $args instead. So a declared switch
+# validated nothing, and behaved differently between the two modes
+# (05-VERIFICATION.md; reproduced at 05-04 plan time). A [CmdletBinding()]
+# attribute was rejected because unknown tokens would then print the raw
+# error-record block WR-03 removed, --build would still be silently
+# accepted under -File, and common parameters such as -Verbose would bind
+# silently. Only -Build is accepted on this launcher. --build is the bash
+# launcher's spelling (P-03 in 05-04-PLAN.md).
+$Build = $false
+if ($args.Count -eq 0) {
+    # accept - no argument
+} elseif ($args.Count -eq 1 -and $args[0] -is [string] -and $args[0] -eq "-Build") {
+    $Build = $true
+} else {
+    [Console]::Error.WriteLine("Usage: start_windows.ps1 [-Build]")
+    exit 1
+}
+
 # 2. .env guard (D-09). Existence only - never Get-Content that file.
 $EnvFile = Join-Path $RepoRoot ".env"
 if (-not (Test-Path $EnvFile -PathType Leaf)) {
