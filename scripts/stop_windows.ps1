@@ -30,6 +30,14 @@ function Invoke-Docker {
     }
 }
 
+# 1. Accept zero arguments only. An empty param() rejects nothing by
+# itself, because unbound tokens land in $args, so the check is explicit
+# (see step 1 of start_windows.ps1).
+if ($args.Count -gt 0) {
+    [Console]::Error.WriteLine("Usage: stop_windows.ps1")
+    exit 1
+}
+
 # 2. If the daemon isn't reachable, FinAlly definitionally is not running.
 Invoke-Docker -DockerArgs @("info") *> $null
 if ($LASTEXITCODE -ne 0) {
