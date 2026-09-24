@@ -41,9 +41,53 @@ No new BLOCKER-level issues were introduced by this change set. Two residual/new
 
 ### WR-04: `start_windows.ps1` has no argument-validation step, unlike its bash counterpart, so a bad invocation prints a raw PowerShell error instead of a usage message
 
+> **Corrected by 05-04:** the failure mode described below (a raw PowerShell
+> `ParameterBindingException` dump) is not what happens. The actual behaviour
+> is silent acceptance with exit 0 -- see the correction appended at the end
+> of this finding.
+
 **File:** `scripts/start_windows.ps1:7` (whole-file gap, no corresponding step)
 **Issue:** `start_mac.sh` has an explicit, commented "1. Argument validation" step (`start_mac.sh:38-56`) that exact-matches `""` or `--build` and otherwise prints `Usage: $0 [--build]` to stderr and exits 1 — this is exactly the same category of fix WR-03 just addressed (a clean, predictable stderr message on bad input). `start_windows.ps1` has no equivalent step; it relies solely on `param([switch]$Build)` for argument handling. If a caller passes anything PowerShell's binder can't resolve against that single switch parameter (e.g. `.\start_windows.ps1 --build` — the bash-style long flag, an easy mistake given the two scripts are documented as having "identical step order" — or any stray positional token), PowerShell raises a `ParameterBindingException` *before* the script body (and its `$ErrorActionPreference = "Stop"`) ever executes, printing the same kind of raw error-record block (message, `At <file>:<line>`, `CategoryInfo`, `FullyQualifiedErrorId`) that WR-03 just eliminated from the script's own explicit error paths — just from a code path this diff didn't touch. This directly undercuts the file's header claim of parity ("identical step order... in PowerShell") and the very rationale WR-03 was fixed for.
 **Fix:** Add an explicit switch-parse guard mirroring the bash script's step 1, e.g. validate `$args`/extra positional tokens before relying on PowerShell's implicit binding, or at minimum wrap the script body's entry in a `try/catch` that catches `System.Management.Automation.ParameterBindingException` and writes a clean `Usage: start_windows.ps1 [-Build]` message via `[Console]::Error.WriteLine` before `exit 1`.
+
+**Correction (05-04-PLAN.md):** Plan-time probing and 05-VERIFICATION.md's own
+live reproduction (`--build`, `--totally-bogus-flag`, `--i-am-not-a-real-flag`,
+each run three times against the committed script) both falsify the failure
+mode this finding predicted. No `ParameterBindingException` was ever raised.
+
+(a) Observed behaviour. Nothing was raised and the exit code was 0:
+- Under `powershell -File`, powershell.exe's own command-line parser rewrote
+  `--build` and `--Build` into the `-Build` switch, which caused a real
+  rebuild and container replacement the caller never asked for.
+- Unrecognised tokens such as `--totally-bogus-flag`, `-Buld` or `foo` were
+  silently collected into the automatic `$args` variable and ignored.
+- Under in-session invocation, the same `--build` landed in `$args` and was
+  ignored.
+- `stop_windows.ps1`'s empty `param()` accepted any argument the same way,
+  so an invocation like `stop_windows.ps1 --help` would have stopped the app.
+
+(b) Root cause. Neither script is an advanced script. Without a
+`[CmdletBinding()]` attribute or a parameter attribute on the script-level
+block, PowerShell never raises `ParameterBindingException` for an unbound
+argument.
+
+(c) Why WR-04's suggested fixes would not have closed it.
+- A `try/catch` on `ParameterBindingException` never fires, because nothing
+  is thrown.
+- Adding `[CmdletBinding()]` would make unknown tokens print the raw
+  error-record block (the WR-03 failure mode), would still accept `--build`
+  under `-File`, and would silently accept common parameters such as
+  `-Verbose`.
+
+(d) The fix of record.
+- 05-04-PLAN.md replaced the declared switch with an empty `param()` plus an
+  exact-match check of `$args` as step 1, accepting only no argument or a
+  single `-Build` in any letter case.
+- It added the zero-argument check to `stop_windows.ps1`.
+- It made the double-dash spelling a rejected token on Windows (P-03).
+
+(e) The threat claim. T-05-08's mitigation claim in 05-02-PLAN.md was false
+and is amended by 05-04-PLAN.md's threat model.
 
 ## Info
 
