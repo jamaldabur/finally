@@ -1,29 +1,202 @@
 ---
 phase: 05-docker-packaging-deployment
-reviewed: 2026-09-24T00:00:00Z
+reviewed: 2026-09-27T00:00:00Z
 depth: standard
-files_reviewed: 6
+files_reviewed: 2
 files_reviewed_list:
-  - .dockerignore
-  - backend/app/main.py
-  - backend/tests/test_main.py
-  - scripts/start_mac.sh
   - scripts/start_windows.ps1
   - scripts/stop_windows.ps1
 findings:
   critical: 1
   warning: 2
-  info: 2
-  total: 5
+  info: 3
+  total: 6
 status: issues_found
 ---
 
 # Phase 5: Code Review Report
 
-**Reviewed:** 2026-09-24T00:00:00Z (2026-09-23T00:00:00Z pass below unchanged; 2026-09-24 pass appended for gap-closure plan 05-04's changed files)
+**Reviewed:** 2026-09-27T00:00:00Z (2026-09-24 and 2026-09-23 passes below unchanged; 2026-09-27
+pass prepended, scoped to the two files gap-closure plan 05-05 modified)
 **Depth:** standard
-**Files Reviewed:** 6 (5 original + `scripts/stop_windows.ps1`, newly in scope after 05-04)
+**Files Reviewed:** 2 this pass (`scripts/start_windows.ps1`, `scripts/stop_windows.ps1`); 6 across
+all passes to date
 **Status:** issues_found
+
+## 2026-09-27 pass — 05-05's host-command-line cross-check (new bugs found)
+
+Scoped re-review of the two files gap-closure plan 05-05 modified to close the colon-token bypass
+this same review recorded as CR-01/WR-01 in the 2026-09-24 pass below (now marked resolved there)
+and that 05-VERIFICATION.md independently reproduced live as its failed truth 14. `diff_base` for
+this pass was `7b5f2e69`, the commit that closed those prior findings, so everything below concerns
+only the new cross-check logic 05-05 introduced.
+
+The mechanism itself is sound for every invocation shape 05-05-PLAN.md's own grounding table
+enumerates, and that table's probe record is unusually thorough (three path forms, in-session,
+wrapper-hosted, pre-script `-:` rows, a docker shim, and live container/image identity checks). I
+traced the new logic in both files line by line against that matrix and did not find a case in the
+tested set where it misbehaves.
+
+The problem is what happens outside that tested set. The cross-check's ability to reject a
+swallowed colon-token depends entirely on finding, inside `[Environment]::GetCommandLineArgs()`, a
+token whose `[System.IO.Path]::GetFullPath(...)` result is lexically `-eq` to `$PSCommandPath`. If
+that anchor search ever fails to find a match, the code does not fail closed — it silently falls
+back to trusting `$args` alone, which is exactly the pre-05-05 vulnerable behavior this plan exists
+to close, with zero diagnostic output. The plan's own grounding record states its live probes ran on
+"Windows PowerShell 5.1, the only PowerShell on this machine; pwsh 7 is still not installed" — so
+this exact fallback path has never been exercised against PowerShell 7 (pwsh), a
+Microsoft-recommended, commonly-installed runtime, nor against symlinked/junctioned checkouts,
+`subst`'d drives, or UNC-vs-mapped-drive path mismatches, all of which are plausible ways for the
+anchor match to silently miss on a real developer or CI machine. This is the central finding below
+(CR-01/WR-01 of this pass), split by severity to match this project's own prior finding that the
+stop-side defect is more severe than the start-side one (05-VERIFICATION.md: "the more severe of the
+two, since it is an unintended destructive-to-availability action").
+
+Beyond that, the two ~28-line cross-check blocks are verbatim duplicates across the two files
+(introducing a future-drift risk if one is hand-edited without the other) and there are a couple of
+minor style nits. No hardcoded secrets, no dangerous functions, no non-ASCII bytes, and no violation
+of the project's "exactly one usage write, no `-like`/`-match`/prefix matching" contract were found
+in either file.
+
+### CR-01 (2026-09-27): Host-argv anchor match fails open in `stop_windows.ps1`, silently reproducing the exact colon-bypass this plan closes
+
+**File:** `scripts/stop_windows.ps1:39-70`
+**Issue:**
+The cross-check (lines 39-66) only ever *sets* `$RawArgs` when it finds a token in
+`[Environment]::GetCommandLineArgs()` whose `[System.IO.Path]::GetFullPath(...)` is lexically equal
+to `$PSCommandPath` (lines 43-54). If no such token is found — the loop simply falls through without
+matching — `$RawArgs` stays `$null`, and the very next block (lines 56-66) leaves
+`$ArgsIntact = $true` unconditionally, because that block's body only runs
+`if ($null -ne $RawArgs)`. The final guard at line 67
+(`if (-not $ArgsIntact -or $ScriptArgs.Count -gt 0)`) then evaluates using `$args` alone — the exact
+mechanism CR-01/WR-01 (2026-09-24 pass, below) and 05-VERIFICATION.md truth 14 proved is not a
+complete record of what the caller typed under `-File`.
+
+This means: whenever `$MyInvocation.Line` is empty (a `-File`-style invocation, by this code's own
+discriminator) *and* the anchor search fails to find a matching token, a colon-suffixed token such
+as `-Foo:` is silently swallowed by PowerShell's own `-File` tokenizer *and* undetected by this
+cross-check — falling straight through to `docker info` (line 73) and then `docker stop` (line 87)
+against a genuinely running container, with exit 0 and no usage message. That is the identical live
+failure mode 05-VERIFICATION.md reproduced against the pre-05-05 code (an unintended `docker stop`
+against a running `finally` container, described there as "the more severe of the two" defects
+because it is destructive to availability, not merely a silently-discarded rebuild request).
+
+The anchor search can plausibly fail to match in situations never exercised by 05-05-PLAN.md's own
+grounding probes, which were run only on "Windows PowerShell 5.1, the only PowerShell on this
+machine; pwsh 7 is still not installed" (05-05-PLAN.md `<grounding>`):
+- PowerShell 7 (`pwsh.exe`), a distinct, Microsoft-recommended, commonly co-installed runtime whose
+  `Path.GetFullPath` normalization is implemented on .NET (not .NET Framework) and was never probed.
+- A repository checked out through a symlink or NTFS junction (common with synced-folder or
+  worktree setups), where the `-File` argument and `$PSCommandPath` can resolve through different
+  real/lexical path forms even though both point at the same file.
+- A `subst`'d drive letter, or a UNC path passed where `$PSCommandPath` reports a mapped-drive form
+  (or vice versa) — neither is a lexical rewrite that `GetFullPath` performs.
+
+None of this is documented as an accepted residual risk in `05-SECURITY.md`'s Accepted Risks Log
+(that log lists only AR-05-02 through AR-05-04, none of which cover this cross-check), so this is
+not a signed-off tradeoff — it is an untested fail-open path in the very control T-05-08 exists to
+close.
+
+**Fix:** Make the discriminator fail closed instead of fail open. When `$MyInvocation.Line` is
+empty (so this is definitely a `-File`-style invocation) but the anchor search never finds a
+matching token, treat that as "cannot verify" rather than "nothing to verify":
+
+```powershell
+$ArgsIntact = $true
+if ([string]::IsNullOrEmpty($MyInvocation.Line)) {
+    if ($null -eq $RawArgs) {
+        # The host argv never contained a token matching this script's own
+        # resolved path. Fail closed rather than silently trusting $args --
+        # see 05-REVIEW.md CR-01 (2026-09-27 pass).
+        $ArgsIntact = $false
+    } elseif ($RawArgs.Count -ne $ScriptArgs.Count) {
+        $ArgsIntact = $false
+    } else {
+        foreach ($token in $RawArgs) {
+            if ($token.EndsWith(":")) {
+                $ArgsIntact = $false
+            }
+        }
+    }
+}
+```
+This preserves every currently-passing case in 05-05-PLAN.md's matrix (the anchor is found in all
+of them) while turning the untested "anchor not found" case into the same safe rejection the rest of
+the guard already produces for a detected mismatch, instead of a silent, undiagnosed reversion to
+the pre-fix behavior. Apply the identical restructuring to `start_windows.ps1` (see WR-01 below).
+
+### WR-01 (2026-09-27): Same fail-open anchor-match gap in `start_windows.ps1` (lower severity: silently discards `-Build`, does not touch a running container)
+
+**File:** `scripts/start_windows.ps1:102-138`
+**Issue:** Identical structure and identical root cause to CR-01 above, in the sibling script: if
+`$MyInvocation.Line` is empty but the loop at lines 106-117 never finds a host-argv token whose
+`GetFullPath` equals `$PSCommandPath`, `$RawArgs` stays `$null`, `$ArgsIntact` stays `$true`
+unconditionally (lines 119-129 only act `if ($null -ne $RawArgs)`), and the accept/reject decision
+at lines 130-138 falls back to trusting `$ScriptArgs` (i.e. `$args`) alone. A swallowed `-Build:`
+token would then silently fall through to the bare-start path — the caller's explicit rebuild
+request is discarded with exit 0 and no diagnostic, exactly the failure 05-VERIFICATION.md's live
+`-Build:` reproduction described (image ID confirmed unchanged, "the caller's explicit rebuild
+intent was silently discarded"). This is scored as a Warning rather than Critical here only because
+its worst observed outcome is a stale, non-rebuilt container rather than an unintended stop of a
+running one — matching this project's own precedent for rating the two scripts' identical defect at
+different severities.
+**Fix:** Same restructuring as CR-01's fix block, applied to `start_windows.ps1`'s copy of the
+cross-check (before the existing `$Build = $false` line).
+
+### WR-02 (2026-09-27): The two ~28-line cross-check blocks are verbatim duplicates with no shared source
+
+**File:** `scripts/start_windows.ps1:102-129`, `scripts/stop_windows.ps1:39-66`
+**Issue:** The host-argv cross-check — the anchor-search loop, the try/catch around `GetFullPath`,
+and the `$ArgsIntact` computation — is copy-pasted identically between the two scripts (the
+comments in `stop_windows.ps1` even say so explicitly: "matches start_windows.ps1 exactly"). This is
+intricate, security-relevant logic (this very review found a bug in it). Any future hand-edit to one
+copy — a bug fix, a hardening pass, a new colon-adjacent tokenizer case discovered later — has no
+structural enforcement that it also lands in the other file. The project's own conventions favor
+self-contained, dependency-free launcher scripts (no `.` dot-sourcing of a shared helper is
+currently used anywhere in `scripts/`), so a shared module file may be a deliberate tradeoff rather
+than an oversight; flagging it here so that tradeoff is made explicitly rather than by omission.
+**Fix:** Either (a) accept the duplication as an intentional tradeoff for script portability and add
+a one-line comment cross-reference in each copy noting "if you change this block, change the
+matching block in the other script" (stronger than the current one-directional comment), or (b)
+factor the block into a small dot-sourced `scripts/_arg-check.ps1` that both scripts source via
+`. (Join-Path $PSScriptRoot "_arg-check.ps1")`, accepting the minor increase in moving parts in
+exchange for a single source of truth.
+
+### IN-01 (2026-09-27): Culture-sensitive `EndsWith` used for a security-relevant literal-colon check
+
+**File:** `scripts/start_windows.ps1:125`, `scripts/stop_windows.ps1:62`
+**Issue:** `$token.EndsWith(":")` uses the default (current-culture) overload of `String.EndsWith`,
+rather than an ordinal comparison. For a single ASCII `:` this is very unlikely to misbehave under
+any realistic locale, but this is exactly the kind of string comparison PowerShell/.NET style guides
+flag for ordinal comparison specifically because it is a security-relevant equality check, not a
+display-formatting one — the failure mode of a culture-aware comparison unexpectedly matching or
+missing is silent and locale-dependent, which is hard to catch in testing done on a single
+US-locale machine (as this plan's grounding record documents).
+**Fix:** `$token.EndsWith(":", [System.StringComparison]::Ordinal)` in both files.
+
+### IN-02 (2026-09-27): Redundant runtime type-check on `$ScriptArgs[0]`
+
+**File:** `scripts/start_windows.ps1:133`
+**Issue:** `$ScriptArgs[0] -is [string]` is always true — `$args` elements from a real command-line
+invocation are always `[string]`; this cannot be a non-string here. It is harmless dead-weight in
+the condition but adds a clause a future reader has to reason about for no behavioral payoff.
+**Fix:** Drop the `-is [string]` clause, or if it is meant as defense against some future refactor
+that could put non-string elements into `$ScriptArgs`, add a one-line comment saying so.
+
+### IN-03 (2026-09-27): Comment doesn't distinguish the quoted vs. unquoted in-session `-Foo:` cases it describes
+
+**File:** `scripts/start_windows.ps1:100-101`, `scripts/stop_windows.ps1:37-38`
+**Issue:** The comment states "In-session, PowerShell's own parser refuses a dangling -Foo: before
+this script runs," which is true only for an *unquoted* dangling token at the call site (per this
+plan's own grounding table: unquoted `-Foo:` is refused by the parser with a `ParserError`, while a
+*quoted* `'-Foo:'` is accepted by the parser, lands in `$args`, and is rejected by this script's own
+code, not the parser). A future maintainer skimming only the comment (not the full 05-05-PLAN.md
+grounding record) could reasonably conclude the code's colon check is redundant for all in-session
+cases, when it is actually load-bearing for the quoted case.
+**Fix:** Add "(unquoted)" after "a dangling -Foo:" in both comments to make the distinction explicit
+in-line, without needing to cross-reference the plan document.
+
+---
 
 ## 2026-09-24 pass — 05-04's argument-validation guard (scripts/start_windows.ps1, scripts/stop_windows.ps1)
 
@@ -38,7 +211,9 @@ CR-01 and WR-01 immediately below. This section is prepended to preserve the 202
 > **Resolved by 05-05:** `stop_windows.ps1` now cross-checks the host
 > command line before its zero-argument guard, so a swallowed colon token
 > is rejected instead of reaching the daemon. See the resolution
-> paragraph at the end of this pass.
+> paragraph at the end of this pass. **Note (2026-09-27 pass):** that fix
+> itself has a residual fail-open gap in the same anchor-matching logic --
+> see CR-01/WR-01 in the 2026-09-27 pass above.
 
 **File:** `scripts/stop_windows.ps1:36-39`
 **Issue:** The guard is `if ($args.Count -gt 0) { ... exit 1 }`. Under `powershell -File stop_windows.ps1 <token>` invocation, PowerShell's own command-line parser treats any token of the shape `-Name:` (a dash, an identifier, a trailing colon, nothing after it — whether or not `-Name` is a real declared parameter of the script) as colon-syntax parameter binding, and when nothing follows the colon it silently drops the token instead of raising an error or leaving it in `$args`. The result: `$args.Count` is `0`, indistinguishable from true no-argument invocation, and 05-04's guard lets the script fall straight through to the docker daemon query and (if a container named `finally` is running) the actual `docker stop` call — with no error message at all.
@@ -61,7 +236,9 @@ With a container actually running, `-Foo:` was independently confirmed to reach 
 
 ### WR-01 (2026-09-24): The same colon-suffixed-token gap lets `start_windows.ps1` silently swallow `-Build:` and proceed as a normal (non-rebuild) start instead of rejecting it
 
-> **Resolved by 05-05:** same fix as CR-01, in `start_windows.ps1`.
+> **Resolved by 05-05:** same fix as CR-01, in `start_windows.ps1`. **Note
+> (2026-09-27 pass):** same residual fail-open gap noted there applies
+> here too.
 
 **File:** `scripts/start_windows.ps1:87-95`
 **Issue:** Identical root cause to CR-01. Live, independently reconfirmed:
