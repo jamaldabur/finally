@@ -97,6 +97,66 @@ async def test_sell_does_not_change_avg_cost() -> None:
 
 
 @pytest.mark.asyncio
+async def test_sell_at_a_loss_credits_market_price_and_keeps_avg_cost() -> None:
+    """PLAN.md section 12 names "selling at a loss" as a backend portfolio
+    edge case; no prior test in this file sold below average cost — every
+    existing sell (e.g. test_sell_does_not_change_avg_cost) sells at or
+    above the buy price. Buys 10 CSCO at 100.00, moves the cached price to
+    80.00, then sells 4: proves the fill credits cash at the current market
+    price (not the average cost), avg_cost is left unchanged on the
+    remaining position, and compute_portfolio_view() reports the resulting
+    unrealized loss."""
+    await _init_tables()
+    cache = PriceCache()
+    market_source = SimulatorMarketDataSource()
+    lock = asyncio.Lock()
+
+    # Arrange: buy 10 CSCO at 100.00.
+    await cache.update("CSCO", 100.0)
+    await execute_trade(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        ticker="CSCO",
+        side="buy",
+        quantity=10,
+    )
+
+    # Act: price drops to 80.00, sell 4 shares.
+    await cache.update("CSCO", 80.0)
+    result = await execute_trade(
+        price_cache=cache,
+        market_source=market_source,
+        lock=lock,
+        ticker="CSCO",
+        side="sell",
+        quantity=4,
+    )
+
+    # Assert: fill at market price, cash and position reflect the loss, and
+    # avg_cost on the remaining 6 shares is untouched by the sale.
+    assert result.status == "executed"
+    assert result.reason is None
+    assert result.trade is not None
+    assert result.trade.price == 80.0
+    assert result.cash_balance == 9320.0
+    assert result.position is not None
+    assert result.position.quantity == 6.0
+    assert result.position.avg_cost == 100.0
+
+    assert await users_profile_module.get_cash_balance() == 9320.0
+
+    view = await compute_portfolio_view(price_cache=cache)
+    assert len(view.positions) == 1
+    position = view.positions[0]
+    assert position.current_price == 80.0
+    assert position.market_value == 480.0
+    assert position.unrealized_pnl == -120.0
+    assert position.pct_change == -20.0
+    assert view.total_value == 9800.0
+
+
+@pytest.mark.asyncio
 async def test_buy_insufficient_cash_returns_error_result() -> None:
     await _init_tables()
     cache = PriceCache()
