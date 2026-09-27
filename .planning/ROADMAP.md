@@ -175,7 +175,7 @@ Plans:
   3. Start/stop scripts exist for macOS/Linux (bash) and Windows (PowerShell), and running either repeatedly is safe (idempotent)
   4. `.env.example` is committed and documents `OPENROUTER_API_KEY`, `MASSIVE_API_KEY`, and `LLM_MOCK`
 
-**Plans**: 4/4 plans executed
+**Plans**: 4/5 plans executed
 
 Plans:
 **Wave 1**
@@ -193,6 +193,10 @@ Plans:
 **Wave 4** *(gap closure — verification gap: start_windows.ps1 silently accepts unrecognised arguments; review correction WR-04; blocked on Waves 1-3)*
 
 - [x] 05-04-PLAN.md — Gap closure WR-04: make start_windows.ps1 and stop_windows.ps1 reject any argument they do not recognise as an explicit exact-match step 1 before Docker is touched (proven with VERIFICATION.md's own reproductions, a docker-free RED-to-GREEN matrix, in-session invocation, and a live unchanged-container check), keep a bare start and `-Build` behaving exactly as before, and correct WR-04's mischaracterised failure mode in the review record (wave 4)
+
+**Wave 5** *(gap closure — verification truth 14 / review CR-01+WR-01+IN-01 / T-05-08 reopened: a colon-suffixed valueless token such as `-Foo:` or `-Build:` is dropped by PowerShell's `-File` parser before `$args` is populated, bypassing both launchers' guard; blocked on Wave 4)*
+
+- [ ] 05-05-PLAN.md — Gap closure CR-01/WR-01/IN-01 (T-05-08): cross-check each PowerShell launcher's `$args` against the host command line (`[Environment]::GetCommandLineArgs()`, gated on an empty `$MyInvocation.Line`), rejecting any raw token ending in `:` or a raw count that differs from `$args` before Docker is touched; prove it with a docker-free RED-to-GREEN matrix over three path forms, a docker-shim stop matrix, in-session and wrapper-hosted no-false-rejection gates, and the verifier's own live `stop '-Foo:'` and `start '-Build:'` reproductions; and record the resolution in the review (wave 5)
 
 ### Phase 6: Test Coverage
 
@@ -221,5 +225,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Core Trading UI | 3/3 | Complete    | 2026-09-17 |
 | 3. AI Chat Copilot | 8/8 | Complete    | 2026-09-21 |
 | 4. Portfolio Visualization | 7/7 | Complete    | 2026-09-22 |
-| 5. Docker Packaging & Deployment | 4/4 | In Progress|  |
+| 5. Docker Packaging & Deployment | 4/5 | In Progress|  |
 | 6. Test Coverage | TBD | Not started | - |
