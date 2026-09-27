@@ -62,9 +62,9 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 
 ### Testing (TEST)
 
-- [ ] **TEST-01**: Backend unit tests cover trade execution logic, P&L calculations, and edge cases (insufficient cash/shares)
-- [ ] **TEST-02**: Backend unit tests cover LLM structured-output parsing, including malformed responses
-- [ ] **TEST-03**: Backend unit tests cover API route status codes and response shapes for portfolio/watchlist/chat endpoints
+- [x] **TEST-01**: Backend unit tests cover trade execution logic, P&L calculations, and edge cases (insufficient cash/shares)
+- [x] **TEST-02**: Backend unit tests cover LLM structured-output parsing, including malformed responses
+- [x] **TEST-03**: Backend unit tests cover API route status codes and response shapes for portfolio/watchlist/chat endpoints
 - [ ] **TEST-04**: Frontend unit tests cover price flash animation triggering, watchlist CRUD, portfolio display calculations, and chat rendering/loading state
 - [ ] **TEST-05**: Playwright E2E suite (in `test/`, own `docker-compose.test.yml`, `LLM_MOCK=true`) covers fresh start, watchlist add/remove, buy, sell, visualization rendering, mocked chat trade execution, and SSE reconnection
 
@@ -134,9 +134,9 @@ Which phases cover which requirements. Populated during roadmap creation.
 | DEPLOY-02 | Phase 5 | Complete |
 | DEPLOY-03 | Phase 5 | Complete |
 | DEPLOY-04 | Phase 5 | Complete |
-| TEST-01 | Phase 6 | Pending |
-| TEST-02 | Phase 6 | Pending |
-| TEST-03 | Phase 6 | Pending |
+| TEST-01 | Phase 6 | Complete |
+| TEST-02 | Phase 6 | Complete |
+| TEST-03 | Phase 6 | Complete |
 | TEST-04 | Phase 6 | Pending |
 | TEST-05 | Phase 6 | Pending |
 
