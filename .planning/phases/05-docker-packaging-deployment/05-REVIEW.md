@@ -35,6 +35,11 @@ CR-01 and WR-01 immediately below. This section is prepended to preserve the 202
 
 ### CR-01 (2026-09-24): A single dash-prefixed, colon-suffixed, valueless token silently bypasses `stop_windows.ps1`'s zero-argument guard, reaching the daemon and (if a container is running) actually stopping it
 
+> **Resolved by 05-05:** `stop_windows.ps1` now cross-checks the host
+> command line before its zero-argument guard, so a swallowed colon token
+> is rejected instead of reaching the daemon. See the resolution
+> paragraph at the end of this pass.
+
 **File:** `scripts/stop_windows.ps1:36-39`
 **Issue:** The guard is `if ($args.Count -gt 0) { ... exit 1 }`. Under `powershell -File stop_windows.ps1 <token>` invocation, PowerShell's own command-line parser treats any token of the shape `-Name:` (a dash, an identifier, a trailing colon, nothing after it — whether or not `-Name` is a real declared parameter of the script) as colon-syntax parameter binding, and when nothing follows the colon it silently drops the token instead of raising an error or leaving it in `$args`. The result: `$args.Count` is `0`, indistinguishable from true no-argument invocation, and 05-04's guard lets the script fall straight through to the docker daemon query and (if a container named `finally` is running) the actual `docker stop` call — with no error message at all.
 
@@ -56,6 +61,8 @@ With a container actually running, `-Foo:` was independently confirmed to reach 
 
 ### WR-01 (2026-09-24): The same colon-suffixed-token gap lets `start_windows.ps1` silently swallow `-Build:` and proceed as a normal (non-rebuild) start instead of rejecting it
 
+> **Resolved by 05-05:** same fix as CR-01, in `start_windows.ps1`.
+
 **File:** `scripts/start_windows.ps1:87-95`
 **Issue:** Identical root cause to CR-01. Live, independently reconfirmed:
 ```
@@ -68,11 +75,47 @@ exit=0
 
 ### IN-01 (2026-09-24): The step-1 rationale comment describes the old (fixed) `--build` rewrite bug as if it were still true of the current script's behavior under `-File`
 
+> **Resolved by 05-05:** the step-1 comment now says the rewrite happened
+> only while a matching switch parameter was declared, which is why the
+> script declares no parameters.
+
 **File:** `scripts/start_windows.ps1:76-86`
 **Issue:** The comment reads as an ongoing fact about `-File` parsing in general ("the parser rewrites `--build` into the `-Build` switch"), but that rewrite only ever happened because the *old* code declared `param([switch]$Build)` — a matching declared switch parameter is what `-File` rewrites `--name` into. The current script's `param()` is empty, so `--build` now correctly lands as a literal, rejected token. The comment is accurate as historical justification but could mislead a future maintainer who re-adds a declared parameter into thinking that rewrite risk is categorically retired.
 **Fix:** Reword to make the causality explicit — the rewrite happens for any declared switch parameter whose name collides with a `--`-prefixed input, which is exactly why this script now declares none.
 
 **Threat register note:** T-05-08's "mitigate" disposition in the phase threat model (05-02-PLAN.md, amended by 05-04-PLAN.md) covers argument-handling tampering; CR-01/WR-01 are a mitigation gap in that same control, not a new trust boundary. T-05-10 (stop-script non-destructiveness) and T-05-17 (`stop_windows.ps1` DoS) are also implicated — CR-01's exploit path is precisely an unintended `docker stop` reaching a running container. See `05-SECURITY.md` for the reopened disposition.
+
+**Resolution (05-05-PLAN.md):** CR-01, WR-01 and IN-01 are closed as follows, citing the
+RED/GREEN matrices and live evidence recorded in 05-05-SUMMARY.md's Tasks 1 and 2.
+
+(a) The fix of record. Both launchers now reconstruct the caller's raw tokens from
+`[Environment]::GetCommandLineArgs()`: the tail after the argv element whose full path equals
+the script's own path (`$PSCommandPath`). They do this only when `$MyInvocation.Line` is empty,
+which means the host started the script from its own command line. They reject the invocation
+when any raw token ends in a colon or when the raw count differs from `$args`. 05-04's exact-match
+acceptance (no argument, or a single `-Build` in any letter case, for `start_windows.ps1`; no
+argument for `stop_windows.ps1`) is otherwise unchanged.
+
+(b) Why the `$args`-only variant of the suggested fix could not close this. The swallowed token
+never reaches `$args` at all under `-File` — that is the entire mechanism of the bypass — and any
+`$args` element that does end in a colon was already rejected by 05-04's exact match. The
+trailing-colon rule therefore had to be applied to the raw host command-line tokens, not to
+`$args`. `$MyInvocation.UnboundArguments` and `$PSBoundParameters` were also probed at plan time
+and are equally blind to the swallowed token.
+
+(c) A further shape found at plan time. `-Build -Foo:` reached 05-04's guard as a lone `-Build`
+and was accepted as a rebuild, with the stray `-Foo:` token silently dropped. It is now rejected,
+because the raw host token count (2) no longer matches the count 05-04's guard saw in `$args` (1).
+
+(d) Residual shapes no in-script guard can intercept. Under `-File`, a bare `-:` token makes
+PowerShell print its own argument error ("requires an argument") before the script body runs.
+In-session, an unquoted dangling `-Foo:` is refused by PowerShell's own parser with the same
+message. Both exit non-zero and never reach Docker, but they print PowerShell's own error text and
+not the fixed usage line, because no script code ever executes on those two shapes.
+
+(e) The threat record. T-05-08's re-remediation is recorded in 05-05-PLAN.md's threat model.
+Closing the row in `05-SECURITY.md` is left to re-running `/gsd-secure-phase 05`, and re-scoring
+05-VERIFICATION.md truth 14 is left to re-verification, in the same division 05-04 followed.
 
 ---
 
