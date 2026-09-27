@@ -110,6 +110,31 @@ def test_post_watchlist_rejects_unknown_ticker(client: TestClient) -> None:
     assert len(get_resp.json()["watchlist"]) == 10
 
 
+def test_post_watchlist_empty_ticker_is_422(client: TestClient) -> None:
+    """Locks WatchlistAddRequest.ticker's Field(min_length=1) constraint."""
+    resp = client.post("/api/watchlist", json={"ticker": ""})
+
+    assert resp.status_code == 422
+
+    get_resp = client.get("/api/watchlist")
+    assert len(get_resp.json()["watchlist"]) == 10
+
+
+def test_post_watchlist_whitespace_ticker_is_400(client: TestClient) -> None:
+    """The boundary one step past the 422 case: a whitespace-only ticker
+    passes Field(min_length=1)'s raw length check, but _normalize() strips
+    it down to an empty string, so the route's recognized-ticker check
+    (is_valid_ticker) is what actually rejects it. Locks existing behavior;
+    does not propose changing it."""
+    resp = client.post("/api/watchlist", json={"ticker": "   "})
+
+    assert resp.status_code == 400
+    assert resp.json()["detail"].startswith("Unknown ticker: ")
+
+    get_resp = client.get("/api/watchlist")
+    assert len(get_resp.json()["watchlist"]) == 10
+
+
 def test_post_watchlist_duplicate_reports_not_added(client: TestClient) -> None:
     resp = client.post("/api/watchlist", json={"ticker": "AAPL"})
 
