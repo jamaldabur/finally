@@ -32,8 +32,39 @@ function Invoke-Docker {
 
 # 1. Accept zero arguments only. An empty param() rejects nothing by
 # itself, because unbound tokens land in $args, so the check is explicit
-# (see step 1 of start_windows.ps1).
-if ($args.Count -gt 0) {
+# (see step 1 of start_windows.ps1). $args alone also misses a
+# colon-suffixed token the -File parser drops before this script runs, so
+# the host command line is cross-checked too - see step 1 of
+# start_windows.ps1 for the rationale.
+$ScriptArgs = @($args)
+$RawArgs = $null
+if ([string]::IsNullOrEmpty($MyInvocation.Line)) {
+    $HostArgs = [Environment]::GetCommandLineArgs()
+    for ($i = 1; $i -lt $HostArgs.Count; $i++) {
+        $candidate = $null
+        try {
+            $candidate = [System.IO.Path]::GetFullPath($HostArgs[$i])
+        } catch {
+            $candidate = $null
+        }
+        if ($candidate -and ($candidate -eq $PSCommandPath)) {
+            $RawArgs = @($HostArgs | Select-Object -Skip ($i + 1))
+            break
+        }
+    }
+}
+$ArgsIntact = $true
+if ($null -ne $RawArgs) {
+    if ($RawArgs.Count -ne $ScriptArgs.Count) {
+        $ArgsIntact = $false
+    }
+    foreach ($token in $RawArgs) {
+        if ($token.EndsWith(":")) {
+            $ArgsIntact = $false
+        }
+    }
+}
+if (-not $ArgsIntact -or $ScriptArgs.Count -gt 0) {
     [Console]::Error.WriteLine("Usage: stop_windows.ps1")
     exit 1
 }
