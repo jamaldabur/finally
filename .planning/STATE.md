@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Docker Packaging & Deployment
 status: executing
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-09-27T12:19:26.167Z"
-last_activity: 2026-09-24
+stopped_at: Completed 05-05-PLAN.md
+last_updated: "2026-09-27T12:50:28.418Z"
+last_activity: 2026-09-27
 last_activity_desc: Phase 05 execution started
-state_head: 8a8f335bd7147ee79d5c293eba683a37b167a45d
+state_head: 7b5f2e698bd33891819034d862aa4c424af3ce21
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 27
-  completed_plans: 26
+  completed_plans: 27
   percent: 67
 ---
 
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 
 ## Current Position
 
-Phase: 05 (Docker Packaging & Deployment) — READY TO EXECUTE
-Plan: 2 of 4
+Phase: 05 (Docker Packaging & Deployment) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-09-24 — Phase 05 execution started
+Last activity: 2026-09-27 — Phase 05 execution started
 
 Progress: [███████░░░] 67%
 
@@ -85,6 +85,7 @@ Progress: [███████░░░] 67%
 | Phase 05 P02 | 35min | 2 tasks | 4 files |
 | Phase 05 P03 | 30min | 3 tasks | 5 files |
 | Phase 05 P04 | 25min | 3 tasks | 3 files |
+| Phase 05 P05 | 15min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -146,6 +147,8 @@ Recent decisions affecting current work:
 - [Phase 05]: [Phase 05][05-03]: Live round-trip proof required closing the auto-opened FinAlly browser tab (D-08) before stop_windows.ps1 -- its open SSE connection otherwise blocks uvicorn's graceful shutdown past docker stop's 10s grace period (exit 137), a pre-existing SSE characteristic unrelated to the asyncio.gather fix
 - [Phase 05]: [Phase 05][05-04]: P-03 -- Windows launcher's only rebuild spelling is -Build (any case); both double-dash spellings (--build, --Build) are rejected, resolving a conflict between VERIFICATION.md's concrete re-test list and its looser allowed-set phrasing
 - [Phase 05]: [Phase 05][05-04]: Argument validation on both PowerShell launchers moved from a declared switch/empty param() to an explicit step-1 guard over raw $args -- a non-advanced script never raises ParameterBindingException for an unbound token, and powershell.exe's -File parser silently rewrites --build/--Build into -Build, so a declared parameter validated nothing and behaved differently between -File and in-session invocation
+- [Phase 05]: [Phase 05][05-05]: Trailing-colon rejection rule applied to raw host command-line tokens (GetCommandLineArgs() tail), not to $args -- the swallowed token never reaches $args at all under -File
+- [Phase 05]: [Phase 05][05-05]: $MyInvocation.Line emptiness used as the -File discriminator for the host command-line cross-check, so no in-session call is ever falsely rejected
 
 ### Pending Todos
 
@@ -169,6 +172,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-24T10:16:58.706Z
-Stopped at: Completed 05-04-PLAN.md
+Last session: 2026-09-27T12:50:28.072Z
+Stopped at: Completed 05-05-PLAN.md
 Resume file: None

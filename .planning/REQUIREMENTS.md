@@ -55,10 +55,10 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 
 ### Deployment (DEPLOY)
 
-- [ ] **DEPLOY-01**: App builds as a multi-stage Docker image (Node build stage → Python runtime stage), serving frontend + API on a single port (8000)
-- [ ] **DEPLOY-02**: SQLite database persists via a Docker volume mount at `db/`
+- [x] **DEPLOY-01**: App builds as a multi-stage Docker image (Node build stage → Python runtime stage), serving frontend + API on a single port (8000)
+- [x] **DEPLOY-02**: SQLite database persists via a Docker volume mount at `db/`
 - [x] **DEPLOY-03**: Idempotent start/stop scripts exist for macOS/Linux (bash) and Windows (PowerShell)
-- [ ] **DEPLOY-04**: `.env.example` is committed, documenting `OPENROUTER_API_KEY`, `MASSIVE_API_KEY`, `LLM_MOCK`
+- [x] **DEPLOY-04**: `.env.example` is committed, documenting `OPENROUTER_API_KEY`, `MASSIVE_API_KEY`, `LLM_MOCK`
 
 ### Testing (TEST)
 
@@ -130,10 +130,10 @@ Which phases cover which requirements. Populated during roadmap creation.
 | UI-03 | Phase 4 | Complete |
 | UI-04 | Phase 4 | Complete |
 | UI-05 | Phase 4 | Complete |
-| DEPLOY-01 | Phase 5 | Gaps Found |
-| DEPLOY-02 | Phase 5 | Gaps Found |
+| DEPLOY-01 | Phase 5 | Complete |
+| DEPLOY-02 | Phase 5 | Complete |
 | DEPLOY-03 | Phase 5 | Complete |
-| DEPLOY-04 | Phase 5 | Gaps Found |
+| DEPLOY-04 | Phase 5 | Complete |
 | TEST-01 | Phase 6 | Pending |
 | TEST-02 | Phase 6 | Pending |
 | TEST-03 | Phase 6 | Pending |
