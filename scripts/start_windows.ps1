@@ -74,20 +74,63 @@ function Remove-FinallyContainer {
 # 1. Argument validation, before anything else.
 #
 # Under `powershell -File` a script without a cmdlet-binding attribute
-# silently collects unknown tokens into $args, and the -File command-line
-# parser rewrites --build into the -Build switch. Under in-session
-# invocation the same --build lands in $args instead. So a declared switch
-# validated nothing, and behaved differently between the two modes
-# (05-VERIFICATION.md; reproduced at 05-04 plan time). A [CmdletBinding()]
-# attribute was rejected because unknown tokens would then print the raw
-# error-record block WR-03 removed, --build would still be silently
-# accepted under -File, and common parameters such as -Verbose would bind
-# silently. Only -Build is accepted on this launcher. --build is the bash
-# launcher's spelling (P-03 in 05-04-PLAN.md).
+# silently collects unknown tokens into $args. The old --build rewrite into
+# a -Build switch only ever happened while this script declared a -Build
+# switch parameter: the -File command-line parser rewrites any declared
+# switch whose name matches a double-dash input the same way, which is why
+# this script declares no parameters. Under in-session invocation the same
+# --build lands in $args instead. So a declared switch validated nothing,
+# and behaved differently between the two modes (05-VERIFICATION.md;
+# reproduced at 05-04 plan time). A [CmdletBinding()] attribute was
+# rejected because unknown tokens would then print the raw error-record
+# block WR-03 removed, --build would still be silently accepted under
+# -File, and common parameters such as -Verbose would bind silently. Only
+# -Build is accepted on this launcher. --build is the bash launcher's
+# spelling (P-03 in 05-04-PLAN.md).
+#
+# $args alone is not a complete record of what the caller typed. Under
+# -File, the parser drops a dash-prefixed, colon-suffixed token with
+# nothing after it (examples -Foo: and -Build:) before this script runs,
+# so $args can read empty, or read just -Build, while the caller typed
+# more (05-REVIEW.md CR-01/WR-01, 05-05-PLAN.md). When the host started
+# this script straight from its own command line, $MyInvocation.Line is
+# empty; in-session it holds the calling line. In that case, the tokens
+# after this script's own path in the host argv are what the caller
+# typed. A raw token ending in a colon, or a raw count that differs from
+# $args, means a token was swallowed. In-session, PowerShell's own parser
+# refuses a dangling -Foo: before this script runs.
+$ScriptArgs = @($args)
+$RawArgs = $null
+if ([string]::IsNullOrEmpty($MyInvocation.Line)) {
+    $HostArgs = [Environment]::GetCommandLineArgs()
+    for ($i = 1; $i -lt $HostArgs.Count; $i++) {
+        $candidate = $null
+        try {
+            $candidate = [System.IO.Path]::GetFullPath($HostArgs[$i])
+        } catch {
+            $candidate = $null
+        }
+        if ($candidate -and ($candidate -eq $PSCommandPath)) {
+            $RawArgs = @($HostArgs | Select-Object -Skip ($i + 1))
+            break
+        }
+    }
+}
+$ArgsIntact = $true
+if ($null -ne $RawArgs) {
+    if ($RawArgs.Count -ne $ScriptArgs.Count) {
+        $ArgsIntact = $false
+    }
+    foreach ($token in $RawArgs) {
+        if ($token.EndsWith(":")) {
+            $ArgsIntact = $false
+        }
+    }
+}
 $Build = $false
-if ($args.Count -eq 0) {
+if ($ArgsIntact -and $ScriptArgs.Count -eq 0) {
     # accept - no argument
-} elseif ($args.Count -eq 1 -and $args[0] -is [string] -and $args[0] -eq "-Build") {
+} elseif ($ArgsIntact -and $ScriptArgs.Count -eq 1 -and $ScriptArgs[0] -is [string] -and $ScriptArgs[0] -eq "-Build") {
     $Build = $true
 } else {
     [Console]::Error.WriteLine("Usage: start_windows.ps1 [-Build]")
