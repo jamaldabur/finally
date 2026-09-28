@@ -29,3 +29,16 @@ db/*.db-journal
 **/.env.*
 !**/.env.example
 *.log
+
+# Phase 6 test-exclusion block (06-02-PLAN.md P-05). Test code must never
+# reach an image layer: the frontend build only needs application source,
+# and the top-level E2E `test/` directory builds its own separate Docker
+# Compose context (test/docker-compose.test.yml), never this one. None of
+# these patterns overlaps the dotenv re-include above, so last-match-wins
+# rule order is unaffected.
+**/*.test.ts
+**/*.test.tsx
+frontend/test-support
+frontend/vitest.config.mts
+frontend/vitest.setup.ts
+test
