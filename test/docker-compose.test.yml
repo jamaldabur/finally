@@ -42,8 +42,27 @@ services:
     # Chromium needs more shared memory than Docker's 64MB default;
     # shm_size supplies it without joining the host IPC namespace (P-12).
     shm_size: "1gb"
+    # Shares the app container's network namespace instead of joining the
+    # bridge network under its own IP (06-06-PLAN.md Task 2, Rule 3): any
+    # chat-driven spec calls crypto.randomUUID() inside
+    # frontend/lib/chatStore.tsx, which the Web Crypto spec restricts to
+    # secure contexts. Chromium does not treat the app.e2e alias (D-08's
+    # own dotted-hostname fix for the HTTPS-upgrade heuristic) as secure,
+    # so crypto.randomUUID() silently throws before any chat request is
+    # ever sent — confirmed live: window.isSecureContext is false and
+    # crypto.randomUUID is undefined at http://app.e2e:8000, every chat
+    # submission (Enter, button click, keyboard) is a silent no-op, and no
+    # POST /api/chat is ever issued. "localhost" is the one hostname
+    # Chromium always treats as a secure context regardless of scheme
+    # (the W3C Secure Contexts spec's own carve-out) — sharing app's
+    # network namespace via network_mode lets BASE_URL point at
+    # http://localhost:8000 for real, not just a same-named alias, without
+    # touching frontend or backend application code (P-07). `networks:`
+    # cannot be combined with `network_mode` on the same service, so this
+    # replaces (not supplements) the implicit default-network membership.
+    network_mode: "service:app"
     environment:
-      BASE_URL: http://app.e2e:8000
+      BASE_URL: http://localhost:8000
       CI: "true"
     volumes:
       - ./test-results:/e2e/test-results

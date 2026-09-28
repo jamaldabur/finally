@@ -173,3 +173,60 @@ export async function apiPortfolio(page: Page): Promise<PortfolioJson> {
   expect(res.ok()).toBeTruthy();
   return res.json();
 }
+
+/** The chat input, found by its placeholder text (ChatInput.tsx). */
+export function chatInput(page: Page): Locator {
+  return page.getByPlaceholder(/Ask about your portfolio/);
+}
+
+/**
+ * Assistant chat bubbles (ChatMessageList.tsx) whose text starts with the
+ * `[LLM_MOCK]` prefix — excludes the visually-identical "thinking" indicator
+ * bubble, which carries no such text.
+ */
+function mockChatBubbles(page: Page): Locator {
+  return page.locator(".border-l-2.border-accent-blue", {
+    hasText: /^\[LLM_MOCK\]/,
+  });
+}
+
+/**
+ * Sends a chat message and waits for the reply: fills the input, presses
+ * Enter, then waits until the number of `[LLM_MOCK]`-prefixed bubbles has
+ * grown by one and the input is enabled and empty again — so callers never
+ * race the response.
+ */
+export async function sendChat(page: Page, text: string): Promise<void> {
+  // ChatProvider's mount-time GET /api/chat hydrate can still be in flight
+  // here (found live: counting bubbles before it lands reads a stale 0,
+  // then the hydrate's history AND this send's own reply both land at
+  // once, jumping straight past `before + 1`). "Loading conversation…"
+  // only renders while `messages === null`, so waiting for it to be gone
+  // is a deterministic hydrate-complete barrier; it resolves immediately
+  // if hydration already finished.
+  await expect(page.getByText("Loading conversation…")).toHaveCount(0);
+
+  const bubbles = mockChatBubbles(page);
+  const before = await bubbles.count();
+
+  const input = chatInput(page);
+  await input.fill(text);
+  // ChatInput.tsx's Send button is disabled while `text.trim() === ""`,
+  // driven by the exact same React state Enter's keydown handler closes
+  // over. Waiting for it to become enabled is a deterministic barrier
+  // proving the typed value has actually landed in that state before Enter
+  // fires — without it, under this page's constant ~500ms SSE-driven
+  // re-render churn, Enter can race a still-in-flight state commit and
+  // silently no-op (found live: input kept its typed text, no message
+  // sent, no error — Rule 1 fix, not a fixed sleep).
+  await expect(
+    page.getByRole("button", { name: "Send", exact: true }),
+  ).toBeEnabled();
+  await input.press("Enter");
+
+  await expect
+    .poll(async () => bubbles.count(), { timeout: 20_000 })
+    .toBe(before + 1);
+  await expect(input).toBeEnabled();
+  await expect(input).toHaveValue("");
+}
