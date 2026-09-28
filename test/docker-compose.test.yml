@@ -1,0 +1,58 @@
+# E2E harness (TEST-05, PLAN.md §12). Project name namespaces every
+# container, network, image and volume this file creates away from
+# anything the user runs themselves (T-06-05) — no published port, no
+# fixed container name, no shared image tag with the production build.
+name: finally-e2e
+
+services:
+  # The real production image, built from the repo-root Dockerfile, run
+  # with LLM_MOCK=true on a throwaway volume (D-06). Never the developer's
+  # own db/ bind mount or the production finally-data volume name.
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    environment:
+      LLM_MOCK: "true"
+      # Forces the simulator regardless of the host's own .env — the
+      # suite never calls a real market data provider either (T-06-03).
+      MASSIVE_API_KEY: ""
+    volumes:
+      - e2e-db:/app/db
+    # No healthcheck override (P-15): the image's own HEALTHCHECK
+    # (Dockerfile) is what the playwright service below waits on.
+    networks:
+      default:
+        # Compose's plain single-label service DNS name ("app") triggers
+        # both Chromium's and Firefox's automatic HTTP->HTTPS upgrade for
+        # any non-IP-literal, dot-less hostname (verified live this run:
+        # http://app:8000 fails ERR_SSL_PROTOCOL_ERROR/SSL_ERROR_UNKNOWN in
+        # both engines even though a raw container IP navigates fine). A
+        # dotted alias sidesteps the heuristic with no other config change.
+        aliases:
+          - app.e2e
+
+  # The Playwright runner, built from the pinned-version image matching
+  # @playwright/test's exact devDependency pin (test/package.json).
+  playwright:
+    build:
+      context: .
+      dockerfile: Dockerfile.playwright
+    init: true
+    # Chromium needs more shared memory than Docker's 64MB default;
+    # shm_size supplies it without joining the host IPC namespace (P-12).
+    shm_size: "1gb"
+    environment:
+      BASE_URL: http://app.e2e:8000
+      CI: "true"
+    volumes:
+      - ./test-results:/e2e/test-results
+      - ./playwright-report:/e2e/playwright-report
+    depends_on:
+      app:
+        # Waits on the app's own image HEALTHCHECK (D-08) — no sleep, no
+        # polling script.
+        condition: service_healthy
+
+volumes:
+  e2e-db:

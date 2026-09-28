@@ -1,0 +1,17 @@
+# E2E runner image (P-08): a dedicated image, not a bind-mounted host
+# install, so the suite runs identically regardless of the host OS. The
+# base tag must match the @playwright/test devDependency pin in
+# package.json exactly (RESEARCH.md Pitfall 5) or the browser binaries
+# baked into this image will not match the test runner's expected version.
+FROM mcr.microsoft.com/playwright:v1.63.0-noble
+
+WORKDIR /e2e
+
+# Dependency layer first, cached independently of spec changes.
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY playwright.config.ts ./
+COPY specs ./specs
+
+CMD ["npx", "playwright", "test"]

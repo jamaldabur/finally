@@ -1,0 +1,11 @@
+{
+  "name": "finally-e2e",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "list": "playwright test --list"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}
