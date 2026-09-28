@@ -39,12 +39,16 @@ A user can watch live prices, trade a simulated portfolio, and have an AI copilo
 - ✓ Main chart area for the selected ticker, keyboard- and click-selectable from the watchlist — Phase 4, closed after 1 UAT gap-closure round (Recharts default `accessibilityLayer` made the sparkline a second tab stop per row and grew a broken-looking default focus ring; opted sparklines out and gave MainChart/PnlHistoryChart a deliberate themed focus ring instead)
 - ✓ Portfolio heatmap (treemap, sized by weight, colored/saturated by P&L%, capped ±10%) — Phase 4, closed after 1 UAT gap-closure round (label visibility was gated on a fixed rectangle threshold instead of the actual text extent; replaced with a measured-glyph-width fit test)
 - ✓ P&L line chart from `portfolio_snapshots` — Phase 4, closed after 1 UAT gap-closure round (unbounded snapshot history + a categorical axis made the line read as a bold/busy ink band at real data volume; bounded the backend read, capped the frontend request, and switched to a time-scaled numeric axis)
-- [ ] Multi-stage Dockerfile (Node build → Python runtime), single container, port 8000, volume-mounted SQLite
-- [ ] Start/stop scripts for macOS/Linux (bash) and Windows (PowerShell), idempotent
-- [ ] `.env.example` committed
-- [ ] Backend unit tests (pytest): portfolio math, trade edge cases, LLM structured-output parsing, API route contracts
-- [ ] Frontend unit tests (React Testing Library or similar): price flash, watchlist CRUD, portfolio calculations, chat rendering
-- [ ] Playwright E2E suite in `test/` (own `docker-compose.test.yml`), run with `LLM_MOCK=true`, covering fresh start, watchlist CRUD, buy/sell, visualizations, mocked chat trade execution, SSE reconnection
+- ✓ Backend unit tests (pytest): portfolio math, trade edge cases, LLM structured-output parsing, API route contracts — Phase 6 (audit-and-close-gaps on 228 pre-existing tests + 3 new; 231 total, 0 failures)
+- ✓ Frontend unit tests (Vitest + React Testing Library): price flash, watchlist CRUD, portfolio calculations, chat rendering — Phase 6 (111 tests across 10 files, harness built from scratch)
+- ✓ Playwright E2E suite in `test/` (own `docker-compose.test.yml`), run with `LLM_MOCK=true`, covering fresh start, watchlist CRUD, buy/sell, visualizations, mocked chat trade execution, SSE reconnection — Phase 6 (13 specs; 12 reliably green, 1 environment-limited — see Key Decisions)
+- ✓ Multi-stage Dockerfile (Node build → Python runtime), single container, port 8000, volume-mounted SQLite — Phase 5 (confirmed on disk; formal Phase 5 transition/roadmap sign-off is still outstanding — see Blockers/Concerns)
+- ✓ Start/stop scripts for macOS/Linux (bash) and Windows (PowerShell), idempotent — Phase 5 (confirmed on disk)
+- ✓ `.env.example` committed — Phase 5 (confirmed on disk)
+
+### Active
+
+- [ ] Fix `frontend/lib/chatStore.tsx`'s `sendMessage()`: `crypto.randomUUID()` is called before its own try block and throws under any non-secure-context origin (plain HTTP on a non-localhost host), breaking chat entirely with no visible error — found via Phase 6's E2E harness, tracked as `.planning/WINDOWS.md` #2 (open), out of Phase 6's own scope to fix (test-only phase boundary)
 
 ### Out of Scope
 
@@ -86,6 +90,8 @@ A user can watch live prices, trade a simulated portfolio, and have an AI copilo
 | Normalize each LLM-proposed trade/watchlist item exactly once per loop iteration and reuse that single result for validation, execution, and outcome annotation, rather than deriving the normalized value separately at each of those three points | A confirmed live data-loss bug (G-03-6): the validator's normalized `" add".strip().lower()` passed, but the executor's separate `.lower()`-only re-derivation didn't match `"add"`, so it silently fell through to `remove_watchlist_ticker()` while reporting `outcome=executed` | ✓ Validated by Phase 3 (03-08) — structurally prevents the whole class of validator/executor divergence, not just the one reported instance |
 | Bound `portfolio_snapshots` reads at the query layer (`rowid DESC LIMIT` + reverse, route-validated `limit`) rather than pruning the table | UAT reported the Portfolio Value chart as "busy"; root cause was ~2094 unbounded rows drawn into a ~126px plot, not stroke width. PLAN.md §7 explicitly accepts unbounded row growth as a demo-scale tradeoff — the fix had to leave storage alone and window only the read/render path | ✓ Validated by Phase 4 (04-07) — backend TDD tracer added the first genuinely behavioral (non-structural-grep) test coverage in this phase; re-scopes threat T-04-12 from `accept` to `mitigate` |
 | Opt Recharts-based mini-charts (Sparkline) out of the library's default `accessibilityLayer`, but keep it on for standalone panels (MainChart, PnlHistoryChart) with an explicit themed focus ring | Recharts 3.x makes every chart focusable by default; nesting one inside an already-focusable `WatchlistRow` created a duplicate tab stop and a broken-looking default focus ring, but standalone charts still need arrow-key tooltip navigation | ✓ Validated by Phase 4 (04-05) — live keyboard-traversal check approved by user before the ring/heatmap-never-focuses portion was deferred to end-of-phase UAT (also passed) |
+| E2E Playwright container runs with `network_mode: "service:app"` and `BASE_URL: http://localhost:8000`, not the Compose service DNS name | Chromium/Firefox auto-upgrade any bare, dot-less Compose hostname (`http://app:8000`) to HTTPS, breaking the plain-HTTP app; `crypto.randomUUID()` in chat also requires a secure context, which `localhost` satisfies but a service-DNS name does not | ✓ Validated by Phase 6 (06-05/06-06) — full 13-spec E2E suite runs reliably against the real production image with this topology |
+| Accept the live-drop SSE reconnect test (`context.setOffline`) as an environment-limited, non-blocking gap rather than weakening its assertion or blocking the phase on it | Chromium/CDP's offline emulation blocks new connections but cannot interrupt an already-open, continuously-streaming SSE connection — verified deterministic over 30s isolated diagnostic and 2+ full E2E runs; the suite's other reconnect test (`page.route` abort, unreachable-at-load) independently proves the same `EventSource` retry capability | ✓ Validated by Phase 6 (06-05) — tracked open in `.planning/WINDOWS.md` #1 for a future decision (accept vs. retarget to container-level disconnection) |
 
 ## Evolution
 
@@ -105,4 +111,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-22 after Phase 4*
+*Last updated: 2026-09-29 after Phase 6*

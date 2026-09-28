@@ -20,10 +20,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-22)
+See: .planning/PROJECT.md (updated 2026-09-29)
 
 **Core value:** A user can watch live prices, trade a simulated portfolio, and have an AI copilot execute trades on their behalf — the full agentic trading loop (watch → decide → chat → execute → see it reflected in the portfolio) must work end-to-end.
-**Current focus:** Phase 06 — Test Coverage
+**Current focus:** Phase 5 — Docker Packaging & Deployment (ROADMAP.md never recorded this phase as formally complete, despite its 5 plans and deliverables already existing on disk — see Blockers/Concerns)
 
 ## Current Position
 
@@ -179,6 +179,8 @@ None yet.
 - [Phase 3] Three non-blocking advisories from 03-REVIEW.md/03-VERIFICATION.md remain unfixed by design (all narrow, non-destructive): `chatStore.tsx`'s send try-block scope could misclassify a successful send as failed if `refreshPortfolio()` ever started rejecting (currently never does); the hasSentRef release-on-failed-send fix only covers one of two hydrate/send orderings, so a fast failing send before hydrate resolves could still discard history for that session; the collapsed-panel unread dot is dead code since `ChatInput` unmounts while collapsed. contradict a roadmap success criterion.
 - [Phase 4] Three non-blocking advisories from 04-REVIEW.md (gap-closure round) remain unfixed by design: `PnlHistoryChart.tsx`'s time-scaled axis has no explicit handling for two same-`recorded_at` points (a documented, tested legitimate occurrence in `portfolio_snapshots.py`) — renders as a vertical spike rather than a data error; the docblock's "a chart that visibly fails is better than one that quietly omits a value" claim doesn't match `formatAxisTime`'s actual silent-blank behavior on non-finite values; `get_snapshots()`/`_get_snapshots_sync` trust the route's `Query(ge=1,le=MAX_SNAPSHOT_LIMIT)` validation rather than bounding `limit` themselves, so a future direct (non-route) caller passing a negative limit would reopen G-04-4 via SQLite's negative-LIMIT-means-unbounded behavior. contradict a roadmap success criterion.
 - [Phase 06] .planning/WINDOWS.md entry 1: live-drop SSE reconnect E2E test (test/specs/06-sse-reconnect.spec.ts) deterministically fails in this Chromium — context.setOffline() doesn't interrupt an already-open SSE stream. Unreachable-at-load test independently proves the same retry capability. Needs a human decision: accept as environment limitation, or retarget technique.
+- [Phase 06] .planning/WINDOWS.md entry 2: `frontend/lib/chatStore.tsx`'s `sendMessage()` calls `crypto.randomUUID()` before its own try block, which throws under any non-secure-context origin (plain HTTP on a non-localhost host) and breaks chat entirely with no visible error. Found via Phase 6's E2E harness; out of Phase 6's own scope to fix (test-only phase boundary). Worth a real fix (e.g. a manual UUID fallback) before any real, non-localhost deployment.
+- [Cross-phase] Phase 5 (Docker Packaging & Deployment)'s own `/gsd-transition` never completed — ROADMAP.md's Phase 5 row still reads "In Progress" with no completion date, even though all 5 of its plans have SUMMARY.md files and its deliverables (Dockerfile, start/stop scripts, .env.example) are confirmed present on disk. This is why Phase 6's own transition (this one) routed "next phase" back to Phase 5 instead of Phase 7. Recorded here rather than silently fixed — resolving it (re-running Phase 5's transition, or manually flipping its ROADMAP.md checkbox) is a decision for the user, not something this session assumed authority to do.
 
 ## Deferred Items
 
@@ -190,6 +192,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-28T20:18:13.165Z
-Stopped at: Phase 06 complete, ready to plan Phase 5
+Last session: 2026-09-29T00:00:00.000Z
+Stopped at: Phase 6 (Test Coverage) complete and verified — all 6 plans executed, Nyquist-compliant, threat-secure, code-reviewed, regression-checked, goal-verified. Next up per ROADMAP.md's own bookkeeping is Phase 5 (its transition never ran — see Blockers/Concerns), not Phase 7.
 Resume file: None
