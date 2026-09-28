@@ -28,7 +28,6 @@ function position(
   overrides: Partial<PositionView> & Pick<PositionView, "ticker">,
 ): PositionView {
   return {
-    ticker: overrides.ticker,
     quantity: 0,
     avg_cost: 0,
     current_price: null,
