@@ -230,3 +230,88 @@ export async function sendChat(page: Page, text: string): Promise<void> {
   await expect(input).toBeEnabled();
   await expect(input).toHaveValue("");
 }
+
+/**
+ * Independent heatmap colour oracle (Task 3, 06-06-PLAN.md). These four
+ * constants deliberately mirror frontend/components/charts/chartTheme.ts's
+ * HEX_NEUTRAL, HEX_GAIN, HEX_LOSS and HEATMAP_CAP_PCT — copied here on
+ * purpose, never imported, so this oracle can never silently agree with a
+ * regression in the app's own theme file. Update these constants
+ * deliberately, not incidentally, if chartTheme.ts's palette ever changes.
+ */
+const ORACLE_HEX_NEUTRAL = "#30363d";
+const ORACLE_HEX_GAIN = "#4ade80";
+const ORACLE_HEX_LOSS = "#f87171";
+const ORACLE_HEATMAP_CAP_PCT = 10;
+
+function oracleHexToRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function oracleMixColor(a: string, b: string, t: number): string {
+  const k = Number.isFinite(t) ? Math.min(Math.max(t, 0), 1) : 0;
+  const ca = oracleHexToRgb(a);
+  const cb = oracleHexToRgb(b);
+  const out = ca.map((c, i) => Math.round(c + (cb[i] - c) * k));
+  return `#${out.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/**
+ * An independent restatement of root PLAN.md section 10's heatmap colour
+ * rule — intensity is the absolute percentage capped at 10 and divided by
+ * 10 (non-finite gives 0); the target is the gain colour for `pct >= 0`,
+ * else the loss colour. Never reads the app's own rendered fill.
+ */
+export function expectedHeatmapFill(pct: number): string {
+  const intensity = Number.isFinite(pct)
+    ? Math.min(Math.abs(pct), ORACLE_HEATMAP_CAP_PCT) / ORACLE_HEATMAP_CAP_PCT
+    : 0;
+  const target = pct >= 0 ? ORACLE_HEX_GAIN : ORACLE_HEX_LOSS;
+  return oracleMixColor(ORACLE_HEX_NEUTRAL, target, intensity).toLowerCase();
+}
+
+export type HeatmapTile = {
+  fill: string;
+  area: number;
+  ticker: string | null;
+  pct: string | null;
+};
+
+/**
+ * Every `svg rect` within the "Portfolio Heatmap" section whose `fill` is a
+ * `#rrggbb` value (PortfolioHeatmap.tsx's legend swatches are HTML divs, not
+ * SVG rects, so they never match this selector). `ticker`/`pct` are the text
+ * of the first/second `<text>` elements that are direct children of the
+ * rect's own parent `<g>` — null when Tile.tsx dropped that label for lack
+ * of fit. Read in one DOM evaluation so fill and labels reflect the same
+ * render.
+ */
+export async function heatmapTiles(page: Page): Promise<HeatmapTile[]> {
+  const section = page.locator("section", {
+    has: page.getByRole("heading", {
+      name: "Portfolio Heatmap",
+      exact: true,
+    }),
+  });
+  return section.evaluate((sectionEl) => {
+    const rects = Array.from(sectionEl.querySelectorAll("svg rect")).filter(
+      (rect) => /^#[0-9a-fA-F]{6}$/.test(rect.getAttribute("fill") ?? ""),
+    );
+    return rects.map((rect) => {
+      const fill = (rect.getAttribute("fill") ?? "").toLowerCase();
+      const width = Number(rect.getAttribute("width") ?? "0");
+      const height = Number(rect.getAttribute("height") ?? "0");
+      const parent = rect.parentElement;
+      const texts = parent
+        ? Array.from(parent.children).filter((el) => el.tagName === "text")
+        : [];
+      return {
+        fill,
+        area: width * height,
+        ticker: texts[0]?.textContent ?? null,
+        pct: texts[1]?.textContent ?? null,
+      };
+    });
+  });
+}
