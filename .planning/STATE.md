@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Test Coverage
-status: executing
-stopped_at: Completed 06-05-PLAN.md
-last_updated: "2026-09-28T19:19:07.078Z"
+status: verifying
+stopped_at: Completed 06-06-PLAN.md
+last_updated: "2026-09-28T20:18:13.616Z"
 last_activity: 2026-09-27
 last_activity_desc: Phase 06 execution started
-state_head: db8c401a820a85e876a05960280e4d524cdab02a
+state_head: 6696fd13a384824057f2901e1517336970c4bdef
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 33
-  completed_plans: 32
+  completed_plans: 33
   percent: 67
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 
 Phase: 06 (Test Coverage) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-09-27 — Phase 06 execution started
 
 Progress: [███████░░░] 67%
@@ -91,6 +91,7 @@ Progress: [███████░░░] 67%
 | Phase 06 P03 | 40min | 2 tasks | 3 files |
 | Phase 06 P04 | 45min | 2 tasks | 4 files |
 | Phase 06 P05 | 50min | 3 tasks | 12 files |
+| Phase 06 P06 | 110min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -162,6 +163,8 @@ Recent decisions affecting current work:
 - [Phase 06]: 06-04: position()/entry() test fixture builders spread caller overrides last without a redundant explicit ticker key, avoiding TS2783 while keeping the field required via a Pick<T, "ticker"> intersection type
 - [Phase 06]: [Phase 06][06-05]: Gave the E2E app service a dotted network alias (app.e2e) instead of the bare Compose service name — both Chromium and Firefox auto-upgrade http to https for dot-less, non-IP-literal hostnames, breaking every navigation until fixed (Rule 3, verified live)
 - [Phase 06]: [Phase 06][06-05]: Left the live-drop SSE reconnect test's assertion unweakened per the plan's own explicit contingency text after confirming (30s isolated diagnostic, 2 full runs) that context.setOffline() cannot interrupt an already-open SSE stream in this Chromium — documented as an open blocker in .planning/WINDOWS.md rather than forced to pass
+- [Phase 06]: [Phase 06][06-06]: E2E playwright service shares the app container's network namespace (network_mode: service:app, BASE_URL http://localhost:8000) instead of the app.e2e alias -- http://app.e2e:8000 is not a secure context, so crypto.randomUUID() inside chatStore.tsx silently threw before any chat POST, breaking every chat interaction with no visible error; fixed entirely in E2E infrastructure to stay within this phase's no-application-code-changes boundary
+- [Phase 06]: [Phase 06][06-06]: sendChat()/watchlist test helpers now wait for a deterministic mount-fetch-complete barrier (Send button enabled, 'Loading conversation...' gone, or a known default row visible) before reading a baseline count -- two live-reproduced races found where a stale pre-fetch count skipped past the expected 'before+1' delta
 
 ### Pending Todos
 
@@ -186,6 +189,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-28T19:19:06.544Z
-Stopped at: Completed 06-05-PLAN.md
+Last session: 2026-09-28T20:18:13.165Z
+Stopped at: Completed 06-06-PLAN.md
 Resume file: None

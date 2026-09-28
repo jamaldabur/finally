@@ -66,7 +66,7 @@ Requirements for the current milestone (the full remainder of `planning/PLAN.md`
 - [x] **TEST-02**: Backend unit tests cover LLM structured-output parsing, including malformed responses
 - [x] **TEST-03**: Backend unit tests cover API route status codes and response shapes for portfolio/watchlist/chat endpoints
 - [x] **TEST-04**: Frontend unit tests cover price flash animation triggering, watchlist CRUD, portfolio display calculations, and chat rendering/loading state
-- [ ] **TEST-05**: Playwright E2E suite (in `test/`, own `docker-compose.test.yml`, `LLM_MOCK=true`) covers fresh start, watchlist add/remove, buy, sell, visualization rendering, mocked chat trade execution, and SSE reconnection
+- [x] **TEST-05**: Playwright E2E suite (in `test/`, own `docker-compose.test.yml`, `LLM_MOCK=true`) covers fresh start, watchlist add/remove, buy, sell, visualization rendering, mocked chat trade execution, and SSE reconnection
 
 ## v2 Requirements
 
@@ -138,7 +138,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | TEST-02 | Phase 6 | Complete |
 | TEST-03 | Phase 6 | Complete |
 | TEST-04 | Phase 6 | Complete |
-| TEST-05 | Phase 6 | Pending |
+| TEST-05 | Phase 6 | Complete |
 
 **Coverage:**
 

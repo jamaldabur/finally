@@ -212,7 +212,7 @@ Plans:
   4. Frontend unit tests pass covering price flash animation triggering, watchlist CRUD, portfolio display calculations, and chat rendering/loading state
   5. The Playwright E2E suite (in `test/`, own `docker-compose.test.yml`, `LLM_MOCK=true`) passes covering fresh start, watchlist add/remove, buy, sell, visualization rendering, mocked chat trade execution, and SSE reconnection
 
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans executed
 
 Plans:
 **Wave 1**
@@ -228,7 +228,7 @@ Plans:
 
 **Wave 3** *(blocked on 06-05)*
 
-- [ ] 06-06-PLAN.md — E2E trading loop: buy/sell, chat-driven watchlist add/remove, mocked chat trades, sparklines, main chart, heatmap sizing and colour, P&L line (wave 3)
+- [x] 06-06-PLAN.md — E2E trading loop: buy/sell, chat-driven watchlist add/remove, mocked chat trades, sparklines, main chart, heatmap sizing and colour, P&L line (wave 3)
 
 ## Progress
 
@@ -242,4 +242,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. AI Chat Copilot | 8/8 | Complete    | 2026-09-21 |
 | 4. Portfolio Visualization | 7/7 | Complete    | 2026-09-22 |
 | 5. Docker Packaging & Deployment | 5/5 | In Progress|  |
-| 6. Test Coverage | 5/6 | In Progress|  |
+| 6. Test Coverage | 6/6 | In Progress|  |
