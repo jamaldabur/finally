@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: AI Chat Copilot** - LLM chat assistant that analyzes the portfolio and auto-executes trades/watchlist changes (completed 2026-09-21)
 - [x] **Phase 4: Portfolio Visualization** - Sparklines, main chart, portfolio heatmap, and P&L history chart (completed 2026-09-22)
 - [ ] **Phase 5: Docker Packaging & Deployment** - Single-container multi-stage build with volume-mounted SQLite and start/stop scripts
-- [ ] **Phase 6: Test Coverage** - Backend unit, frontend unit, and Playwright E2E suites covering the full trading loop
+- [x] **Phase 6: Test Coverage** - Backend unit, frontend unit, and Playwright E2E suites covering the full trading loop (completed 2026-09-29)
 
 ## Phase Details
 
@@ -212,7 +212,7 @@ Plans:
   4. Frontend unit tests pass covering price flash animation triggering, watchlist CRUD, portfolio display calculations, and chat rendering/loading state
   5. The Playwright E2E suite (in `test/`, own `docker-compose.test.yml`, `LLM_MOCK=true`) passes covering fresh start, watchlist add/remove, buy, sell, visualization rendering, mocked chat trade execution, and SSE reconnection
 
-**Plans:** 6/6 plans executed
+**Plans:** 6/6 plans complete
 
 Plans:
 **Wave 1**
@@ -242,4 +242,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 3. AI Chat Copilot | 8/8 | Complete    | 2026-09-21 |
 | 4. Portfolio Visualization | 7/7 | Complete    | 2026-09-22 |
 | 5. Docker Packaging & Deployment | 5/5 | In Progress|  |
-| 6. Test Coverage | 6/6 | In Progress|  |
+| 6. Test Coverage | 6/6 | Complete    | 2026-09-29 |
