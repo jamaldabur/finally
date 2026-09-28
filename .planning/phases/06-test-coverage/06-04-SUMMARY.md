@@ -141,3 +141,7 @@ Both frontend areas this plan owns (portfolio display calculations: positions ta
 ---
 *Phase: 06-test-coverage*
 *Completed: 2026-09-28*
+
+## Self-Check: PASSED
+
+All 4 created test files verified present on disk; all 3 commit hashes (`5cac1fc`, `eb9997b`, `2f49f2a`) verified present in `git log --oneline --all`.
