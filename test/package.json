@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "test": "playwright test",
-    "list": "playwright test --list"
+    "list": "playwright test --list",
+    "e2e": "node run-e2e.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0"
