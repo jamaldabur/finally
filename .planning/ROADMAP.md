@@ -175,7 +175,7 @@ Plans:
   3. Start/stop scripts exist for macOS/Linux (bash) and Windows (PowerShell), and running either repeatedly is safe (idempotent)
   4. `.env.example` is committed and documents `OPENROUTER_API_KEY`, `MASSIVE_API_KEY`, and `LLM_MOCK`
 
-**Plans**: 5/5 plans executed
+**Plans**: 5/6 plans executed
 
 Plans:
 **Wave 1**
@@ -197,6 +197,10 @@ Plans:
 **Wave 5** *(gap closure — verification truth 14 / review CR-01+WR-01+IN-01 / T-05-08 reopened: a colon-suffixed valueless token such as `-Foo:` or `-Build:` is dropped by PowerShell's `-File` parser before `$args` is populated, bypassing both launchers' guard; blocked on Wave 4)*
 
 - [x] 05-05-PLAN.md — Gap closure CR-01/WR-01/IN-01 (T-05-08): cross-check each PowerShell launcher's `$args` against the host command line (`[Environment]::GetCommandLineArgs()`, gated on an empty `$MyInvocation.Line`), rejecting any raw token ending in `:` or a raw count that differs from `$args` before Docker is touched; prove it with a docker-free RED-to-GREEN matrix over three path forms, a docker-shim stop matrix, in-session and wrapper-hosted no-false-rejection gates, and the verifier's own live `stop '-Foo:'` and `start '-Build:'` reproductions; and record the resolution in the review (wave 5)
+
+**Wave 6** *(gap closure — re-verification truth 14 / review 2026-09-27 CR-01+WR-01 (plus WR-02, IN-01, IN-02, IN-03) / T-05-08: 05-05's host-argv cross-check fails open when the anchor search finds no token naming the script under an empty `$MyInvocation.Line`; blocked on Wave 5)*
+
+- [ ] 05-06-PLAN.md — Gap closure CR-01/WR-01 (2026-09-27), T-05-08: make both PowerShell launchers fail closed when the host-argv anchor is not found, proven by fault injection, a live in-process runspace trigger (a real anchor-miss path found at plan time), 05-05's unchanged regression matrices and the verifier's live reproductions; fold in the ordinal colon test, parity markers with a byte-identity gate, the load-bearing `-is [string]` comment (IN-02 premise corrected) and the quoted/unquoted comment fix; record the resolutions in the review (wave 6)
 
 ### Phase 6: Test Coverage
 
