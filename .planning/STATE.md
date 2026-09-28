@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 06
 current_phase_name: Test Coverage
 status: executing
-stopped_at: Completed 06-04-PLAN.md
-last_updated: "2026-09-28T18:42:35.806Z"
+stopped_at: Completed 06-05-PLAN.md
+last_updated: "2026-09-28T19:19:07.078Z"
 last_activity: 2026-09-27
 last_activity_desc: Phase 06 execution started
-state_head: eb9997b94f2a86f88f3523b4f3f4a967f012343d
+state_head: db8c401a820a85e876a05960280e4d524cdab02a
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 33
-  completed_plans: 31
+  completed_plans: 32
   percent: 67
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-09-22)
 ## Current Position
 
 Phase: 06 (Test Coverage) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-09-27 — Phase 06 execution started
 
@@ -90,6 +90,7 @@ Progress: [███████░░░] 67%
 | Phase 06 P02 | 55min | 3 tasks | 11 files |
 | Phase 06 P03 | 40min | 2 tasks | 3 files |
 | Phase 06 P04 | 45min | 2 tasks | 4 files |
+| Phase 06 P05 | 50min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -159,6 +160,8 @@ Recent decisions affecting current work:
 - [Phase 06]: [Phase 06][06-03]: Ran git status against the harness/production path set as the semantically-correct substitute for Task 1's literal UI_SOURCE_UNTOUCHED verify command, which is unsatisfiable as written because it diffs frontend/test-support and vitest.setup.ts (created by 06-02) against a pre-phase baseline commit
 - [Phase 06]: 06-04: Task 1's UI_SOURCE_UNTOUCHED verify command is unsatisfiable as written against pre-phase baseline 726046a (test-support/vitest.setup.ts predate this plan) -- substituted the plan's own prose-described git status --short equivalent, per 06-03's precedent
 - [Phase 06]: 06-04: position()/entry() test fixture builders spread caller overrides last without a redundant explicit ticker key, avoiding TS2783 while keeping the field required via a Pick<T, "ticker"> intersection type
+- [Phase 06]: [Phase 06][06-05]: Gave the E2E app service a dotted network alias (app.e2e) instead of the bare Compose service name — both Chromium and Firefox auto-upgrade http to https for dot-less, non-IP-literal hostnames, breaking every navigation until fixed (Rule 3, verified live)
+- [Phase 06]: [Phase 06][06-05]: Left the live-drop SSE reconnect test's assertion unweakened per the plan's own explicit contingency text after confirming (30s isolated diagnostic, 2 full runs) that context.setOffline() cannot interrupt an already-open SSE stream in this Chromium — documented as an open blocker in .planning/WINDOWS.md rather than forced to pass
 
 ### Pending Todos
 
@@ -169,8 +172,9 @@ None yet.
 - REQUIREMENTS.md's original "34 total" coverage count was a pre-enumeration estimate; the actual enumerated v1 list contains 40 REQ-IDs. Traceability table and coverage count corrected to 40/40 during roadmap creation.
 - Known tech debt in the existing market data layer (sync SQLite via `asyncio.to_thread`, no connection pooling, inline schema definitions, broad exception handling in the update loop) is acceptable at current single-user demo scale per `.planning/codebase/CONCERNS.md` — not blocking, not required to fix this milestone.
 - [Phase 1] The 30s background snapshot recorder (`run_portfolio_snapshot_loop`) does not hold `portfolio_lock`, unlike the on-trade snapshot insert — a trade racing the recorder's read could record a torn (partially-committed) `total_value` into the never-pruned `portfolio_snapshots` table. Flagged by 01-REVIEW.md (WR-03); narrow window, no test currently covers it.
-- [Phase 3] Three non-blocking advisories from 03-REVIEW.md/03-VERIFICATION.md remain unfixed by design (all narrow, non-destructive): `chatStore.tsx`'s send try-block scope could misclassify a successful send as failed if `refreshPortfolio()` ever started rejecting (currently never does); the hasSentRef release-on-failed-send fix only covers one of two hydrate/send orderings, so a fast failing send before hydrate resolves could still discard history for that session; the collapsed-panel unread dot is dead code since `ChatInput` unmounts while collapsed. None contradict a roadmap success criterion.
-- [Phase 4] Three non-blocking advisories from 04-REVIEW.md (gap-closure round) remain unfixed by design: `PnlHistoryChart.tsx`'s time-scaled axis has no explicit handling for two same-`recorded_at` points (a documented, tested legitimate occurrence in `portfolio_snapshots.py`) — renders as a vertical spike rather than a data error; the docblock's "a chart that visibly fails is better than one that quietly omits a value" claim doesn't match `formatAxisTime`'s actual silent-blank behavior on non-finite values; `get_snapshots()`/`_get_snapshots_sync` trust the route's `Query(ge=1,le=MAX_SNAPSHOT_LIMIT)` validation rather than bounding `limit` themselves, so a future direct (non-route) caller passing a negative limit would reopen G-04-4 via SQLite's negative-LIMIT-means-unbounded behavior. None contradict a roadmap success criterion.
+- [Phase 3] Three non-blocking advisories from 03-REVIEW.md/03-VERIFICATION.md remain unfixed by design (all narrow, non-destructive): `chatStore.tsx`'s send try-block scope could misclassify a successful send as failed if `refreshPortfolio()` ever started rejecting (currently never does); the hasSentRef release-on-failed-send fix only covers one of two hydrate/send orderings, so a fast failing send before hydrate resolves could still discard history for that session; the collapsed-panel unread dot is dead code since `ChatInput` unmounts while collapsed. contradict a roadmap success criterion.
+- [Phase 4] Three non-blocking advisories from 04-REVIEW.md (gap-closure round) remain unfixed by design: `PnlHistoryChart.tsx`'s time-scaled axis has no explicit handling for two same-`recorded_at` points (a documented, tested legitimate occurrence in `portfolio_snapshots.py`) — renders as a vertical spike rather than a data error; the docblock's "a chart that visibly fails is better than one that quietly omits a value" claim doesn't match `formatAxisTime`'s actual silent-blank behavior on non-finite values; `get_snapshots()`/`_get_snapshots_sync` trust the route's `Query(ge=1,le=MAX_SNAPSHOT_LIMIT)` validation rather than bounding `limit` themselves, so a future direct (non-route) caller passing a negative limit would reopen G-04-4 via SQLite's negative-LIMIT-means-unbounded behavior. contradict a roadmap success criterion.
+- [Phase 06] .planning/WINDOWS.md entry 1: live-drop SSE reconnect E2E test (test/specs/06-sse-reconnect.spec.ts) deterministically fails in this Chromium — context.setOffline() doesn't interrupt an already-open SSE stream. Unreachable-at-load test independently proves the same retry capability. Needs a human decision: accept as environment limitation, or retarget technique.
 
 ## Deferred Items
 
@@ -182,6 +186,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-09-28T18:42:35.467Z
-Stopped at: Completed 06-04-PLAN.md
+Last session: 2026-09-28T19:19:06.544Z
+Stopped at: Completed 06-05-PLAN.md
 Resume file: None
