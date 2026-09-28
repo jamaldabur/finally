@@ -194,3 +194,7 @@ None beyond what 06-05-PLAN.md's frontmatter already declared (`docker-desktop` 
 ---
 *Phase: 06-test-coverage*
 *Completed: 2026-09-28*
+
+## Self-Check: PASSED
+
+All 13 created files confirmed present on disk (`test/package.json`, `test/package-lock.json`, `test/.gitignore`, `test/.dockerignore`, `test/Dockerfile.playwright`, `test/docker-compose.test.yml`, `test/playwright.config.ts`, `test/run-e2e.mjs`, `test/specs/helpers.ts`, `test/specs/01-fresh-start.spec.ts`, `test/specs/06-sse-reconnect.spec.ts`, `.planning/WINDOWS.md`, this SUMMARY). All 3 commit hashes confirmed present in git history (`0b0c1d0`, `99f000d`, `44bf057`).
