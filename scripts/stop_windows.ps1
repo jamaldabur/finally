@@ -38,6 +38,7 @@ function Invoke-Docker {
 # start_windows.ps1 for the rationale. If the cross-check cannot find
 # this script's own path in the host command line, the invocation is
 # rejected (fail closed) - see step 1 of start_windows.ps1.
+# BEGIN host-argv cross-check: keep this block identical in start_windows.ps1 and stop_windows.ps1
 $ScriptArgs = @($args)
 $RawArgs = $null
 $ArgsIntact = $true
@@ -64,12 +65,13 @@ if ([string]::IsNullOrEmpty($MyInvocation.Line)) {
         $ArgsIntact = $false
     } else {
         foreach ($token in $RawArgs) {
-            if ($token.EndsWith(":")) {
+            if ($token.EndsWith(":", [System.StringComparison]::Ordinal)) {
                 $ArgsIntact = $false
             }
         }
     }
 }
+# END host-argv cross-check
 if (-not $ArgsIntact -or $ScriptArgs.Count -gt 0) {
     [Console]::Error.WriteLine("Usage: stop_windows.ps1")
     exit 1
