@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Core Trading UI** - Minimal Next.js frontend wiring watchlist, trade bar, positions, and header to the live backend (completed 2026-09-17)
 - [x] **Phase 3: AI Chat Copilot** - LLM chat assistant that analyzes the portfolio and auto-executes trades/watchlist changes (completed 2026-09-21)
 - [x] **Phase 4: Portfolio Visualization** - Sparklines, main chart, portfolio heatmap, and P&L history chart (completed 2026-09-22)
-- [ ] **Phase 5: Docker Packaging & Deployment** - Single-container multi-stage build with volume-mounted SQLite and start/stop scripts
+- [x] **Phase 5: Docker Packaging & Deployment** - Single-container multi-stage build with volume-mounted SQLite and start/stop scripts (completed 2026-09-29)
 - [x] **Phase 6: Test Coverage** - Backend unit, frontend unit, and Playwright E2E suites covering the full trading loop (completed 2026-09-29)
 
 ## Phase Details
@@ -245,5 +245,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Core Trading UI | 3/3 | Complete    | 2026-09-17 |
 | 3. AI Chat Copilot | 8/8 | Complete    | 2026-09-21 |
 | 4. Portfolio Visualization | 7/7 | Complete    | 2026-09-22 |
-| 5. Docker Packaging & Deployment | 6/6 | In Progress|  |
+| 5. Docker Packaging & Deployment | 6/6 | Complete    | 2026-09-29 |
 | 6. Test Coverage | 6/6 | Complete    | 2026-09-29 |
