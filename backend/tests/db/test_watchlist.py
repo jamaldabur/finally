@@ -4,13 +4,6 @@ from app.db import watchlist as watchlist_module
 from app.market.simulator import DEFAULT_WATCHLIST
 
 
-@pytest.fixture(autouse=True)
-def isolated_db(monkeypatch, tmp_path):
-    """Every test in this module gets its own throwaway SQLite file — never
-    touch the real db/finally.db during tests."""
-    monkeypatch.setattr(watchlist_module, "DB_PATH", tmp_path / "finally.db")
-
-
 @pytest.mark.asyncio
 async def test_init_db_seeds_default_watchlist():
     await watchlist_module.init_db()
@@ -45,3 +38,43 @@ async def test_get_watchlist_tickers_for_unknown_user_is_empty():
     await watchlist_module.init_db()
     tickers = await watchlist_module.get_watchlist_tickers(user_id="someone-else")
     assert tickers == []
+
+
+@pytest.mark.asyncio
+async def test_add_watchlist_ticker_persists():
+    await watchlist_module.init_db()
+    result = await watchlist_module.add_watchlist_ticker("PYPL")
+    assert result is True
+    assert "PYPL" in await watchlist_module.get_watchlist_tickers()
+
+
+@pytest.mark.asyncio
+async def test_add_watchlist_ticker_is_idempotent():
+    await watchlist_module.init_db()
+    first = await watchlist_module.add_watchlist_ticker("PYPL")
+    second = await watchlist_module.add_watchlist_ticker("PYPL")
+    assert first is True
+    assert second is False
+    tickers = await watchlist_module.get_watchlist_tickers()
+    assert tickers.count("PYPL") == 1
+
+
+@pytest.mark.asyncio
+async def test_remove_watchlist_ticker_persists():
+    await watchlist_module.init_db()
+    result = await watchlist_module.remove_watchlist_ticker("AAPL")
+    assert result is True
+    assert "AAPL" not in await watchlist_module.get_watchlist_tickers()
+
+    second_result = await watchlist_module.remove_watchlist_ticker("AAPL")
+    assert second_result is False
+
+
+@pytest.mark.asyncio
+async def test_get_watchlist_entries_returns_added_at():
+    await watchlist_module.init_db()
+    entries = await watchlist_module.get_watchlist_entries()
+    tickers = await watchlist_module.get_watchlist_tickers()
+    assert len(entries) == len(tickers)
+    for entry in entries:
+        assert entry.added_at != ""

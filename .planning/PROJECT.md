@@ -1,0 +1,136 @@
+# FinAlly — AI Trading Workstation
+
+## Current State
+
+**v1.0 MVP shipped 2026-09-29.** 6 phases, 34 plans, 76 tasks, 269 files changed (~58,400 insertions) over 2026-09-12 → 2026-09-29. All 40/40 v1 requirements validated; 231 backend + 111 frontend unit tests and a 13-spec Playwright E2E suite all green. Full record: `.planning/MILESTONES.md`, `.planning/milestones/v1.0-ROADMAP.md`, `.planning/milestones/v1.0-REQUIREMENTS.md`.
+
+The full agentic trading loop works end-to-end: a user watches live streaming prices, places trades (or has the AI chat copilot place them), and sees the result reflected across the watchlist, positions table, heatmap, and P&L chart — all served from one Docker container on port 8000.
+
+## What This Is
+
+FinAlly is a visually stunning, AI-powered trading workstation — a browser-based capstone project for an agentic AI coding course. It streams live (simulated or real) market data, lets a single user trade a simulated $10,000 portfolio with instant market-order fills, and integrates an LLM chat assistant that can analyze the user's portfolio and execute trades and watchlist changes on their behalf. It looks and feels like a modern Bloomberg terminal with an AI copilot, ships as a single Docker container on one port, and is itself built entirely by orchestrated coding agents.
+
+## Core Value
+
+A user can watch live prices, trade a simulated portfolio, and have an AI copilot execute trades on their behalf — the full agentic trading loop (watch → decide → chat → execute → see it reflected in the portfolio) must work end-to-end.
+
+**Confirmed still the right priority at v1.0 close** — every phase's own verification exercised this exact loop, and the E2E suite proves it end-to-end against the real production Docker image.
+
+## Requirements
+
+### Validated
+
+- ✓ Market data abstraction (simulator + optional Massive/Polygon REST client behind one interface) — existing (pre-GSD)
+- ✓ GBM price simulator with correlated sector moves and seeded starting prices — existing (pre-GSD)
+- ✓ In-memory thread-safe price cache updated by a background task — existing (pre-GSD)
+- ✓ SSE endpoint (`GET /api/stream/prices`) streaming price ticks to clients — existing (pre-GSD)
+- ✓ SQLite `watchlist` table, lazily initialized and seeded with 10 default tickers (read-only) — existing (pre-GSD)
+- ✓ `GET /api/health` liveness endpoint — existing (pre-GSD)
+- ✓ Complete SQLite schema: `users_profile`, `positions`, `trades`, `portfolio_snapshots`, `chat_messages` tables (plus watchlist mutation support) — Phase 1
+- ✓ Portfolio state: cash balance, positions with avg cost, unrealized P&L (computed live on read, never persisted) — Phase 1
+- ✓ Market order trade execution (buy/sell, instant fill, no fees, no confirmation), validated for sufficient cash/shares — Phase 1
+- ✓ Portfolio snapshot recording (every 30s + after each trade) for P&L history — Phase 1
+- ✓ Watchlist mutation: add ticker (reject unrecognized symbols) and remove ticker — Phase 1
+- ✓ REST API: `/api/portfolio`, `/api/portfolio/trade`, `/api/portfolio/history`, `/api/watchlist` (GET/POST/DELETE) — Phase 1
+- ✓ Next.js (TypeScript, static export) frontend: dark terminal-themed single-page app, dark theme tokens locked to PLAN.md §2 exactly — Phase 2
+- ✓ Watchlist panel: live-updating grid with flash-on-real-change animations for every tracked ticker (per-ticker sparklines deferred — see Active) — Phase 2
+- ✓ Positions table (ticker, qty, avg cost, current price, P&L, % change), server-authoritative, live current price — Phase 2
+- ✓ Trade bar (ticker, quantity, buy/sell, instant fill, no confirmation dialog), inline backend rejection wording — Phase 2
+- ✓ Header: live portfolio value (client-recomputed, sanctioned exception), connection status dot (real onopen/onerror/readyState state machine), cash balance, "Simulated" account marker — Phase 2
+- ✓ LLM chat integration via LiteLLM → OpenRouter, structured JSON output (message + trades + watchlist_changes) — Phase 3 (model deviation: `openrouter/openrouter/free`, not the originally-specified `openrouter/openai/gpt-oss-120b` — see Key Decisions)
+- ✓ Chat auto-executes trades/watchlist changes through the same validation path as manual actions, annotates each with executed/error outcome — Phase 3
+- ✓ `execute_trade()` gains its own input validation (quantity > 0, side is exactly "buy"/"sell") instead of relying solely on the HTTP route's Pydantic layer — Phase 3 (fixed in 03-01 Task 3; originally flagged by Phase 1 code review WR-01/WR-02)
+- ✓ `GET /api/chat` (history) and `POST /api/chat` (send message, get full response) endpoints — Phase 3
+- ✓ `LLM_MOCK=true` deterministic mock mode for testing — Phase 3
+- ✓ AI chat panel (collapsible, hydrates from `GET /api/chat`, inline trade/watchlist confirmation badges) — Phase 3, closed after 3 UAT gap-closure rounds (collapse-control accessibility/motion, LLM fence-recovery/failover, action-outcome normalization, collapsed-rail full-height rendering)
+- ✓ Per-ticker sparklines accumulated from the SSE stream, in the watchlist panel — Phase 4
+- ✓ Main chart area for the selected ticker, keyboard- and click-selectable from the watchlist — Phase 4, closed after 1 UAT gap-closure round (Recharts default `accessibilityLayer` made the sparkline a second tab stop per row and grew a broken-looking default focus ring; opted sparklines out and gave MainChart/PnlHistoryChart a deliberate themed focus ring instead)
+- ✓ Portfolio heatmap (treemap, sized by weight, colored/saturated by P&L%, capped ±10%) — Phase 4, closed after 1 UAT gap-closure round (label visibility was gated on a fixed rectangle threshold instead of the actual text extent; replaced with a measured-glyph-width fit test)
+- ✓ P&L line chart from `portfolio_snapshots` — Phase 4, closed after 1 UAT gap-closure round (unbounded snapshot history + a categorical axis made the line read as a bold/busy ink band at real data volume; bounded the backend read, capped the frontend request, and switched to a time-scaled numeric axis)
+- ✓ Backend unit tests (pytest): portfolio math, trade edge cases, LLM structured-output parsing, API route contracts — Phase 6 (audit-and-close-gaps on 228 pre-existing tests + 3 new; 231 total, 0 failures)
+- ✓ Frontend unit tests (Vitest + React Testing Library): price flash, watchlist CRUD, portfolio calculations, chat rendering — Phase 6 (111 tests across 10 files, harness built from scratch)
+- ✓ Playwright E2E suite in `test/` (own `docker-compose.test.yml`), run with `LLM_MOCK=true`, covering fresh start, watchlist CRUD, buy/sell, visualizations, mocked chat trade execution, SSE reconnection — Phase 6 (13 specs; 12 reliably green, 1 environment-limited — see Key Decisions)
+- ✓ Multi-stage Dockerfile (Node build → Python runtime), single container, port 8000, volume-mounted SQLite — Phase 5
+- ✓ Start/stop scripts for macOS/Linux (bash) and Windows (PowerShell), idempotent — Phase 5, closed after 6 waves of gap closure. The Windows launchers' argument-validation guard went through repeated bypass/fix cycles (WR-04 → colon-token bypass → host-argv cross-check → the cross-check's own fail-open branch on an anchor-search miss) before landing on a fully fail-closed design in 05-06, independently re-verified by three separate passes (security auditor, code reviewer, phase verifier) each re-deriving live evidence rather than trusting prior claims
+- ✓ `.env.example` committed — Phase 5
+
+### Active
+
+All v1 requirements shipped — see Next Milestone Goals below for carried-forward work.
+
+### Out of Scope
+
+- Multi-user support / authentication — single hardcoded `user_id="default"`, explicitly deferred per PLAN.md
+- Limit orders, partial fills, order book — market orders only, to keep portfolio math simple
+- Trade confirmation dialogs — deliberate zero-friction design for the agentic demo
+- Postgres or any external DB server — SQLite is sufficient for single-user, self-contained deployment
+- WebSockets — SSE covers the one-way price-push need with less complexity
+- Cloud deployment (Terraform/App Runner) — stretch goal per PLAN.md §11, not core v1
+
+## Next Milestone Goals
+
+Carried forward from v1.0, not required for the core agentic trading loop but worth addressing before any real (non-localhost) deployment or further UI polish:
+
+- [ ] Fix `frontend/lib/chatStore.tsx`'s `sendMessage()`: `crypto.randomUUID()` is called before its own try block and throws under any non-secure-context origin (plain HTTP on a non-localhost host), breaking chat entirely with no visible error. Found via Phase 6's E2E harness; `.planning/milestones/v1.0-phases/06-test-coverage/` for detail.
+- [ ] Decide on the live-drop SSE reconnect test (`context.setOffline` cannot interrupt an already-open SSE stream in this Chromium/CDP) — accept as a permanent environment limitation (the suite's other reconnect test already proves the same `EventSource` retry capability) or retarget to a container-level disconnection technique.
+- [ ] `PnlHistoryChart.tsx`'s time-scaled axis renders two same-`recorded_at` snapshot points as a vertical spike rather than a labeled data event (Phase 4 advisory, unfixed by design).
+- [ ] `get_snapshots()`/`_get_snapshots_sync` trust the route's `Query(ge=1,le=MAX_SNAPSHOT_LIMIT)` validation rather than bounding `limit` themselves — a future non-route caller passing a negative limit would reopen unbounded-row behavior (Phase 4 advisory, unfixed by design).
+- [ ] pwsh (PowerShell 7) remains unprobed for the Windows launcher scripts' argument guard — only Windows PowerShell 5.1 is installed on the development machine. The guard's own `<verify>` blocks already include a conditional pwsh row that will exercise this the moment pwsh becomes available.
+- [ ] `run_portfolio_snapshot_loop`'s 30s background recorder doesn't hold `portfolio_lock`, unlike the on-trade snapshot insert — a trade racing the recorder's read could record a torn `total_value` (Phase 1 advisory, narrow window, no test covers it).
+
+## Context
+
+- This is a brownfield GSD bootstrap: the codebase already contains a working market data layer (~40-50% of PLAN.md complete per `.planning/codebase/CONCERNS.md`), built pre-GSD across commits up through `12782cf`/`8375047`.
+- `planning/PLAN.md` (repo-checked-in, referenced by root `CLAUDE.md`) is the authoritative, exhaustive spec for this project — architecture, schema, API surface, LLM integration contract, frontend layout, Docker/deployment, and testing strategy are all already fully decided there. This PROJECT.md defers to PLAN.md for implementation detail and exists to drive GSD's requirements/roadmap/execution machinery on top of it.
+- `.planning/codebase/` (ARCHITECTURE.md, STACK.md, CONCERNS.md, CONVENTIONS.md, INTEGRATIONS.md, STRUCTURE.md, TESTING.md) documents the current as-built state and known gaps/tech debt; `CONCERNS.md` in particular enumerates every missing piece (full DB schema, all non-health/stream routes, LLM integration, entire frontend, Docker/deployment, E2E tests) — that list is effectively the seed for this milestone's Active requirements.
+- Known minor tech debt to be aware of but not required to fix in this milestone: synchronous SQLite calls wrapped in `asyncio.to_thread`, no connection pooling, inline (non-file) schema definitions, broad exception handling in the market update loop. Acceptable at current single-user demo scale per the codebase audit.
+- Backend is a `uv`-managed Python 3.12 / FastAPI project; frontend does not exist yet and will be a fresh Next.js TypeScript project using static export.
+- **At v1.0 close:** backend is FastAPI/Python 3.12 (231 pytest tests), frontend is Next.js 16 App Router + Tailwind v4 + Recharts (111 Vitest/RTL tests), packaged as one multi-stage Docker image (Node build → Python runtime) on port 8000 with a bind-mounted SQLite `db/`. E2E coverage (13 Playwright specs) runs against that real production image via its own `docker-compose.test.yml`.
+
+## Constraints
+
+- **Tech stack**: FastAPI (Python, uv) backend, Next.js (TypeScript, static export) frontend, SQLite, SSE, LiteLLM → OpenRouter — all fixed by PLAN.md, not open decisions for this milestone
+- **Deployment**: Single Docker container, single port (8000), no docker-compose required for production — per PLAN.md §3/§11
+- **LLM model**: Must use `openrouter/openrouter/free` via the `litellm-stream` skill with structured outputs, per PLAN.md §9 and root CLAUDE.md
+- **Scope simplification**: Market orders only, no auth, no confirmation dialogs — deliberate choices in PLAN.md to keep portfolio math and demo flow simple
+- **Course/demo context**: This is a capstone project meant to demonstrate agentic AI coding; polish and "impressive fluid demo experience" (PLAN.md §9) matter alongside correctness
+
+## Key Decisions
+
+| Decision | Rationale | Outcome |
+|----------|-----------|---------|
+| Treat `planning/PLAN.md` as the binding spec; this GSD cycle scopes/sequences work rather than re-deciding architecture | PLAN.md is already exhaustive and pre-approved; re-litigating it would waste the detailed prior design work | ✓ Validated — all 6 phases shipped against PLAN.md's architecture/schema/API/LLM/frontend/Docker/testing spec without re-litigating any of it |
+| Single v1 milestone covering the full remainder of PLAN.md (portfolio, chat, frontend, Docker, tests) | Scope is already tightly bounded by PLAN.md; splitting into multiple milestones would add process overhead without a clear natural cut point | ✓ Validated — shipped as one 6-phase v1.0 milestone; no natural mid-milestone cut point ever emerged |
+| Structure roadmap as a Vertical MVP (thin end-to-end slice first, then layer in visualization/AI/packaging) rather than Horizontal Layers | Gets a demoable trade-execution loop working early against the already-live market data stream, reducing integration risk versus building all layers in parallel and wiring at the end | ✓ Validated by Phase 1 — walking-skeleton tracer (one BUY order, full stack) landed first and every later plan/task extended it without rework |
+| Keep inline `_SCHEMA` constants per `app/db/*.py` module (mirroring the existing `watchlist.py` pattern) rather than extracting to a `backend/schema/` directory as root PLAN.md §4 anticipates | All five new tables needed to ship fast behind a single shared `_connect()`/`DB_PATH`; extracting a schema layer now would be a pure refactor with no behavior change and no phase currently blocked on it | Phase 1 — kept inline; revisit only if a future phase actually needs schema/migration tooling |
+| `execute_trade()` trusts its caller for `quantity > 0` and `side ∈ {"buy","sell"}` rather than re-validating internally | Plan 01 scoped it as the trade route's backing function only; Pydantic at the HTTP layer was assumed sufficient | ✓ Validated — flagged as a gap by Phase 1 code review (WR-01/WR-02) once Phase 3's direct-call chat flow was considered; fixed in Phase 3 (03-01 Task 3) |
+| Defer all frontend automated testing (Vitest/React Testing Library) to Phase 6, verify Phase 2 entirely by manual browser UAT instead | Introducing a test framework mid-phase for a single wave of UI work would add setup cost without a second consumer yet; Phase 6 (`TEST-04`) already owns frontend test infra project-wide | ✓ Validated by Phase 2 — `workflow.human_verify_mode: end-of-phase` deferred every `<human-check>` to one end-of-phase UAT batch (8 items), all passed with 0 issues; Nyquist validation confirmed manual-by-design is not a coverage gap |
+| Client-side price-cell flash triggers on the cell's own last-rendered price (a `useRef`), never on the SSE tick's `previous_price` field | `PriceCache.update()` keeps `previous_price` stale-but-different forever after the first real move on an unchanged-price heartbeat, so a `previous_price`-based trigger would flash on every 0.5s heartbeat forever | ✓ Validated by Phase 2 — verified correct by code review, phase verification, and live 20+-second UAT observation (test 5) |
+| Use `openrouter/openrouter/free` instead of root PLAN.md §9's specified `openrouter/openai/gpt-oss-120b` | The specified model returned HTTP 402 (insufficient credits) on the very first live call; the free router was the only working path | ✓ Validated by Phase 3 — user-approved Rule 4 deviation (03-01-SUMMARY.md), re-confirmed and hardened around (not reverted) by every later gap-closure plan (03-06 failover, 03-08 sign-convention prompting) |
+| Normalize each LLM-proposed trade/watchlist item exactly once per loop iteration and reuse that single result for validation, execution, and outcome annotation, rather than deriving the normalized value separately at each of those three points | A confirmed live data-loss bug (G-03-6): the validator's normalized `" add".strip().lower()` passed, but the executor's separate `.lower()`-only re-derivation didn't match `"add"`, so it silently fell through to `remove_watchlist_ticker()` while reporting `outcome=executed` | ✓ Validated by Phase 3 (03-08) — structurally prevents the whole class of validator/executor divergence, not just the one reported instance |
+| Bound `portfolio_snapshots` reads at the query layer (`rowid DESC LIMIT` + reverse, route-validated `limit`) rather than pruning the table | UAT reported the Portfolio Value chart as "busy"; root cause was ~2094 unbounded rows drawn into a ~126px plot, not stroke width. PLAN.md §7 explicitly accepts unbounded row growth as a demo-scale tradeoff — the fix had to leave storage alone and window only the read/render path | ✓ Validated by Phase 4 (04-07) — backend TDD tracer added the first genuinely behavioral (non-structural-grep) test coverage in this phase; re-scopes threat T-04-12 from `accept` to `mitigate` |
+| Opt Recharts-based mini-charts (Sparkline) out of the library's default `accessibilityLayer`, but keep it on for standalone panels (MainChart, PnlHistoryChart) with an explicit themed focus ring | Recharts 3.x makes every chart focusable by default; nesting one inside an already-focusable `WatchlistRow` created a duplicate tab stop and a broken-looking default focus ring, but standalone charts still need arrow-key tooltip navigation | ✓ Validated by Phase 4 (04-05) — live keyboard-traversal check approved by user before the ring/heatmap-never-focuses portion was deferred to end-of-phase UAT (also passed) |
+| E2E Playwright container runs with `network_mode: "service:app"` and `BASE_URL: http://localhost:8000`, not the Compose service DNS name | Chromium/Firefox auto-upgrade any bare, dot-less Compose hostname (`http://app:8000`) to HTTPS, breaking the plain-HTTP app; `crypto.randomUUID()` in chat also requires a secure context, which `localhost` satisfies but a service-DNS name does not | ✓ Validated by Phase 6 (06-05/06-06) — full 13-spec E2E suite runs reliably against the real production image with this topology |
+| Accept the live-drop SSE reconnect test (`context.setOffline`) as an environment-limited, non-blocking gap rather than weakening its assertion or blocking the phase on it | Chromium/CDP's offline emulation blocks new connections but cannot interrupt an already-open, continuously-streaming SSE connection — verified deterministic over 30s isolated diagnostic and 2+ full E2E runs; the suite's other reconnect test (`page.route` abort, unreachable-at-load) independently proves the same `EventSource` retry capability | ✓ Validated by Phase 6 (06-05) — tracked open in `.planning/WINDOWS.md` #1 for a future decision (accept vs. retarget to container-level disconnection) |
+| Windows launcher argument guard fails closed (rejects) rather than open (accepts) when its host-command-line anchor search cannot find a match, even though this newly rejects some legitimate no-argument invocations from hosts that leave `$MyInvocation.Line` empty (an in-process PowerShell runspace, confirmed live; any unprobed path form/runtime) | 05-05's fail-open choice for the identical situation reopened the exact colon-token Docker-state bypass (`stop_windows.ps1 '-Foo:'` reaching a live `docker stop` against a running container) the guard exists to close — 05-REVIEW.md's 2026-09-27 pass (CR-01/WR-01) and 05-VERIFICATION.md's same-day pass both caught it. Reversing to fail-closed trades a safe, documented, workaround-able false rejection for closing a live security bypass | ✓ Validated by Phase 5 (05-06) — accepted as residual risk T-05-19 (`.planning/phases/05-docker-packaging-deployment/05-SECURITY.md` AR-05-05); dynamically proven by a live, non-mocked in-process-runspace trigger, re-derived independently by the security auditor and the phase verifier (each built their own fault-injection harness rather than reusing the orchestrator's) |
+| When a plan's executor runs inside a sandbox that cannot execute the plan's own verification commands (here: a worktree-isolated agent whose Bash tool categorically refused every `powershell.exe` invocation), the executor documents the limitation honestly rather than claiming unverified success, and the orchestrator completes the missing verification itself in an unsandboxed context before the gap can be considered closed | A plan whose entire purpose is proving a fix works dynamically (not just structurally) cannot be marked done on code inspection alone when the dynamic proof never ran — silently accepting the executor's partial completion would have reintroduced exactly the "looked correct on inspection, wasn't" failure mode 05-05→05-06 exists to fix | ✓ Validated by Phase 5 (05-06) — orchestrator ran every `<verify>` command live post-merge; all GREEN, recorded in `05-REVIEW.md`'s "Addendum (orchestrator, post-merge)" and re-confirmed independently by 3 further passes (security auditor, code reviewer, phase verifier) |
+
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
+---
+*Last updated: 2026-09-29 after v1.0 milestone close*

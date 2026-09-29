@@ -205,3 +205,17 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# GSD runtime/session state (regenerated — not source)
+.gsd/
+.planning/state.json
+
+# SQLite runtime database (volume-mounted at runtime, per PLAN.md §4)
+db/*.db
+db/*.db-journal
+
+# The Python "lib/" build-artifact pattern above also matches frontend/lib/,
+# which is a real TypeScript source directory (Phase 2), not a build output —
+# un-ignore it explicitly.
+!frontend/lib/
+!frontend/lib/**

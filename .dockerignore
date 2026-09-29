@@ -1,0 +1,44 @@
+# Docker build-context exclusions (Phase 5, PLAN.md §11 / §4).
+# Keeps dependency trees, virtualenvs, VCS/tooling metadata, secrets, and
+# runtime data out of the build context and every image layer (ASVS V14).
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.next
+.git
+.planning
+.claude
+frontend/out
+db/*.db
+db/*.db-journal
+# Unlike .gitignore, Docker anchors a slash-free pattern to the context
+# root only, so a bare `.env` line never covered `.env.<suffix>` variants
+# or a bare dotenv file below the root (05-REVIEW.md CR-01). The `**/`
+# prefix matches zero or more directories, covering every depth, and
+# protects both whole-directory copies in the Dockerfile (`COPY frontend/
+# ./` in frontend-build, `COPY backend/app ./app` in runtime). It also
+# keeps `next build` inside the image hermetic: Next.js loads `.env.local`
+# and `.env.production*` during a production build and inlines any
+# NEXT_PUBLIC_* value into the shipped static bundle, so a contributor's
+# local file could otherwise change what the image serves. Order matters:
+# Docker applies .dockerignore rules last-match-wins, so the re-include
+# must come after the variant exclusion or the committed templates would
+# be dropped too.
+**/.env
+**/.env.*
+!**/.env.example
+*.log
+
+# Phase 6 test-exclusion block (06-02-PLAN.md P-05). Test code must never
+# reach an image layer: the frontend build only needs application source,
+# and the top-level E2E `test/` directory builds its own separate Docker
+# Compose context (test/docker-compose.test.yml), never this one. None of
+# these patterns overlaps the dotenv re-include above, so last-match-wins
+# rule order is unaffected.
+**/*.test.ts
+**/*.test.tsx
+frontend/test-support
+frontend/vitest.config.mts
+frontend/vitest.setup.ts
+test

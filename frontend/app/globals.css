@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* Dark trading-terminal theme (PLAN.md §2, D-09). Tailwind v4 is CSS-first —
+   theme customization lives here as `@theme` custom properties, not in a
+   `tailwind.config.js` (02-RESEARCH.md Pitfall 5). These five values are
+   locked exactly per PLAN.md §2; `--color-terminal-bg` is the darkest
+   surface in the app (muted gray borders, no pure black).
+
+   `--color-terminal-border` and `--color-terminal-text-muted` (added in
+   Plan 02-01) are the muted-border and dim-text tokens every panel shares.
+   `--color-gain`/`--color-loss` (added here, Task 3) match the green/red
+   already used by PriceCell's flash (`bg-green-500`/`bg-red-500`) and the
+   watchlist's change-percent text (`text-green-400`/`text-red-400`), so a
+   future consumer has one named token to reach for instead of picking a
+   Tailwind shade ad hoc. `--font-numeric` is the single near-monospace
+   family for every numeric cell, paired with the `tabular-nums` utility so
+   streaming prices don't jitter column width as digits change. */
+@theme {
+  --color-terminal-bg: #0d1117;
+  --color-terminal-panel: #1a1a2e;
+  --color-terminal-border: #30363d;
+  --color-accent-yellow: #ecad0a;
+  --color-accent-blue: #209dd7;
+  --color-accent-purple: #753991;
+  --color-terminal-text: #e6edf3;
+  --color-terminal-text-muted: #8b949e;
+  --color-gain: #4ade80;
+  --color-loss: #f87171;
+  --font-numeric:
+    "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, ui-monospace,
+    monospace;
+}
+
+body {
+  background-color: var(--color-terminal-bg);
+  color: var(--color-terminal-text);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Every numeric cell already carries Tailwind's `tabular-nums` utility
+   (watchlist rows since Plan 02-02, positions rows since Plan 02-03) —
+   this rule gives every one of them the single numeric font family too,
+   without threading a second utility class through each component. */
+.tabular-nums {
+  font-family: var(--font-numeric);
+}
+
+/* Recharts renders every accessibility-enabled chart (MainChart,
+   PnlHistoryChart) with a focusable root <svg class="recharts-surface">,
+   so this one rule reaches every such surface without threading a class
+   through each chart component — the same reasoning as `.tabular-nums`
+   above. Replacing the browser's default `outline: auto` ring is
+   deliberate: that default is what made a focused 20px watchlist
+   sparkline look like a broken empty box during UAT (G-04-2b). Using
+   `:focus-visible` rather than bare `:focus` means a mouse click on a
+   chart never paints the ring — Recharts focuses the surface on pointer
+   interaction too, and a ring on every click would read as a rendering
+   glitch. The neutral text token is used rather than an accent hue,
+   matching the UI-SPEC's precedent that a focus state is chrome and this
+   app spends no reserved accent colour on chrome. */
+.recharts-surface:focus-visible {
+  outline: 2px solid var(--color-terminal-text);
+  outline-offset: 2px;
+}

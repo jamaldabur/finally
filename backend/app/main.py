@@ -9,20 +9,51 @@ the process. `create_app()` is a factory (rather than a bare module-level
 
 import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
+from .db import chat_messages, portfolio_snapshots, positions, trades, users_profile
 from .db.watchlist import get_watchlist_tickers, init_db
 from .market.cache import PriceCache
 from .market.factory import build_market_data_source
 from .market.loop import MASSIVE_POLL_SECONDS, SIMULATOR_TICK_SECONDS, run_update_loop
 from .market.massive import MassiveMarketDataSource
-from .routes import health, stream
+from .portfolio.snapshots import run_portfolio_snapshot_loop
+from .routes import chat, health, portfolio, stream
+from .routes import watchlist as watchlist_routes
+
+# backend/app/main.py -> parents[0]=app, [1]=backend, [2]=repo root — loads
+# the project-root .env (PLAN.md §5) so OPENROUTER_API_KEY reaches LiteLLM.
+# No override=True: an already-exported variable or a test's
+# monkeypatch.setenv must both win over the file (03-01-PLAN.md Task 2).
+load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
+
+# backend/app/main.py -> parents[0]=app, [1]=backend — locally this resolves
+# to backend/static. Inside the Docker image, this same file lives at
+# /app/app/main.py, so parents[1] resolves to /app/static — exactly where
+# the Dockerfile's `COPY --from=frontend-build /app/frontend/out ./static`
+# lands the Next.js static export (Phase 5, D-04). This directory only
+# exists inside the built image (or after a manual `npm run build` +
+# manual copy) — a bare `uv run`/`pytest` checkout has no `backend/static/`,
+# which is why the mount below is guarded rather than unconditional.
+STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # All init_db() calls run before any asyncio.create_task(...) below —
+    # a background task's first tick could otherwise hit "no such table"
+    # (01-RESEARCH.md Pitfall 6).
     await init_db()
+    await users_profile.init_db()
+    await positions.init_db()
+    await trades.init_db()
+    await portfolio_snapshots.init_db()
+    await chat_messages.init_db()
 
     source = build_market_data_source()
     cache = PriceCache()
@@ -36,23 +67,74 @@ async def lifespan(app: FastAPI):
     update_task = asyncio.create_task(
         run_update_loop(source, cache, get_watchlist_tickers, interval)
     )
+    snapshot_task = asyncio.create_task(run_portfolio_snapshot_loop(cache))
 
     # Stored on app.state so routes can reach both without a second global —
     # this is the single constructed MarketDataSource instance for the
     # process's lifetime (planning/MARKET_DATA_DESIGN.md §7).
     app.state.market_source = source
     app.state.price_cache = cache
+    # Guards the read-modify-write of cash_balance + positions + the trades
+    # insert in app/portfolio/service.py::execute_trade(), mirroring
+    # PriceCache's own asyncio.Lock (the codebase's only other precedent for
+    # guarding shared mutable state under concurrent async access).
+    app.state.portfolio_lock = asyncio.Lock()
+    # Stored so tests (and any future introspection) can assert the task was
+    # actually cancelled on shutdown, not just fire-and-forget (01-RESEARCH.md
+    # Pitfall 5 — an untracked task leaks across TestClient teardown and can
+    # write into the next test's throwaway database).
+    app.state.snapshot_task = snapshot_task
 
     yield
 
     update_task.cancel()
+    snapshot_task.cancel()
+    # cancel() only schedules delivery of CancelledError at each task's next
+    # suspension point; awaiting both tasks guarantees neither is still
+    # inside source.get_prices() when source.stop() releases the client they
+    # share (WR-01, 05-REVIEW.md). return_exceptions=True absorbs the
+    # CancelledError each task ends with so shutdown proceeds. Neither loop
+    # catches BaseException (see market/loop.py, portfolio/snapshots.py), so
+    # this await cannot hang.
+    await asyncio.gather(update_task, snapshot_task, return_exceptions=True)
     await source.stop()
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="FinAlly", lifespan=lifespan)
+    # Dev-only convenience: `next dev` (Plan 02-01) runs on :3000 while this
+    # backend runs on :8000, and `output: 'export'` forecloses the usual
+    # Next.js dev-proxy trick (02-RESEARCH.md Pitfall 1), so the frontend
+    # talks to the backend cross-origin during local development. Scoped to
+    # exactly one explicit origin, no credentials — PLAN.md §3 production
+    # architecture is same-origin (FastAPI serves the static export), so this
+    # middleware is inert there. Phase 5 (D-03): it ships unchanged in the
+    # Docker image — the single-container deployment is always same-origin,
+    # so no browser ever sends a cross-origin request matching
+    # localhost:3000, and stripping/env-gating a no-op would only add a new
+    # failure mode for local `next dev` against the packaged backend.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:3000"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.include_router(health.router)
     app.include_router(stream.router)
+    app.include_router(portfolio.router)
+    app.include_router(watchlist_routes.router)
+    app.include_router(chat.router)
+    # Mounted LAST (D-04) so it never shadows an /api/* route: Starlette
+    # checks routes in registration order, and a mount at "/" would
+    # otherwise swallow everything. Guarded by is_dir() rather than
+    # StaticFiles' own check_dir=False, because silently accepting a
+    # missing directory would make a frontend-less image look healthy
+    # while serving nothing at "/" — the guard here means "skip the mount
+    # entirely", not "mount and pretend it's fine". STATIC_DIR is read as
+    # a module global (not a default argument) so tests can
+    # monkeypatch.setattr(main, "STATIC_DIR", ...) to steer it.
+    if STATIC_DIR.is_dir():
+        app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
     return app
 
 
