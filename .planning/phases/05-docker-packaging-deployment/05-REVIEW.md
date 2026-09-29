@@ -1,27 +1,133 @@
 ---
 phase: 05-docker-packaging-deployment
-reviewed: 2026-09-27T00:00:00Z
+reviewed: 2026-09-29T00:00:00Z
 depth: standard
 files_reviewed: 2
 files_reviewed_list:
   - scripts/start_windows.ps1
   - scripts/stop_windows.ps1
 findings:
-  critical: 1
-  warning: 2
-  info: 3
-  total: 6
-status: issues_found
+  critical: 0
+  warning: 0
+  info: 0
+  total: 0
+status: clean
 ---
 
 # Phase 5: Code Review Report
 
-**Reviewed:** 2026-09-27T00:00:00Z (2026-09-24 and 2026-09-23 passes below unchanged; 2026-09-27
-pass prepended, scoped to the two files gap-closure plan 05-05 modified)
+**Reviewed:** 2026-09-29T00:00:00Z (2026-09-27, 2026-09-24 and 2026-09-23 passes below unchanged;
+2026-09-29 pass prepended, an independent re-verification of 05-06's fail-closed restructuring,
+scoped to the two files that plan modified)
 **Depth:** standard
 **Files Reviewed:** 2 this pass (`scripts/start_windows.ps1`, `scripts/stop_windows.ps1`); 6 across
 all passes to date
-**Status:** issues_found
+**Status:** clean (this pass — no new findings; see passes below for full history and the
+orchestrator's live dynamic verification of this same change)
+
+## 2026-09-29 pass — independent re-verification of 05-06's fail-closed restructuring (no new findings)
+
+Scoped re-review of the two files 05-06 modified to close CR-01/WR-01/IN-01/IN-02/IN-03 of the
+2026-09-27 pass below (the anchor-search fail-open gap, the culture-sensitive colon comparison, and
+two documentation nits). `diff_base` for this pass was `fb14a5d7d9af74063fa1aa10b6e74d7b6a7d8f5a`,
+the commit immediately before 05-06's changes landed, so everything below concerns only the diff
+that commit introduced. This pass runs after — and independently of — the orchestrator's addendum
+at the end of the 2026-09-27 pass, which already exercised this exact code live (mocked
+fault-injection matrix plus a real in-process-runspace anchor-miss trigger) with GREEN results. My
+job here was to independently re-derive correctness from the source rather than take that GREEN
+result on faith, and to check for anything the live probes' specific test shapes might not have
+exercised.
+
+**What changed, confirmed against the diff:**
+- The `$ArgsIntact = $true` initialization moved from after the `$MyInvocation.Line` gate to before
+  it, and the body that used to be `if ($null -ne $RawArgs) { ... }` is now a three-way
+  `if ($null -eq $RawArgs) { $ArgsIntact = $false } elseif (...) { ... } else { ... }` *inside* the
+  same gate. This is the fail-closed fix of record: previously, when the anchor search never found a
+  host-argv token matching `$PSCommandPath`, `$RawArgs` stayed `$null` and the old code's
+  `if ($null -ne $RawArgs)` guard simply never ran, leaving `$ArgsIntact` at its default `$true` —
+  fail-open. The new structure makes "anchor not found" its own explicit branch that sets
+  `$ArgsIntact = $false`.
+- `$token.EndsWith(":")` became `$token.EndsWith(":", [System.StringComparison]::Ordinal)` in both
+  files (closing IN-01's culture-sensitivity concern).
+- Both copies of the block are now wrapped in `# BEGIN host-argv cross-check: keep this block
+  identical in start_windows.ps1 and stop_windows.ps1` / `# END host-argv cross-check` marker
+  comments.
+- Surrounding prose comments were expanded (the fail-closed rationale, the unquoted-vs-quoted
+  `-Foo:` distinction, and — in `start_windows.ps1` only, outside the marked block — the corrected
+  rationale for keeping the `-is [string]` check).
+
+**Independent verification performed:**
+
+1. *Byte-identity of the shared block.* I extracted the text between the `BEGIN`/`END` markers from
+   both files and diffed them directly rather than trusting the marker comment's claim:
+   ```
+   $ diff <(awk '/BEGIN host-argv cross-check/,/END host-argv cross-check/' scripts/start_windows.ps1) \
+          <(awk '/BEGIN host-argv cross-check/,/END host-argv cross-check/' scripts/stop_windows.ps1)
+   (no output — 34/34 lines identical in both files)
+   ```
+   Confirmed: the two copies are truly byte-identical, not just visually similar.
+
+2. *Full control-flow trace of the fail-closed branch.* Walked every path through the restructured
+   block by hand:
+   - `$MyInvocation.Line` non-empty (in-session): the outer `if` body never executes, `$ArgsIntact`
+     keeps its pre-set `$true`, identical to the old code's behavior for this branch. No regression.
+   - `$MyInvocation.Line` empty, anchor loop never matches (`$RawArgs` stays `$null`): now correctly
+     falls into `$ArgsIntact = $false` — this is the exact CR-01/WR-01 gap, now closed.
+   - Anchor matches, but `$RawArgs.Count -ne $ScriptArgs.Count`: `$ArgsIntact = $false`, unchanged
+     from the old code's behavior for this case.
+   - Anchor matches, counts equal, a token ends in `:` (ordinal): `$ArgsIntact = $false` inside the
+     `foreach`, unchanged in effect from the old code (only the comparison overload changed).
+   - Anchor matches, counts equal, no token ends in `:`: `$ArgsIntact` stays `$true`, the correct
+     accept path for a genuine bare or `-Build` invocation. Verified this still holds for the
+     zero-argument case specifically: `Select-Object -Skip ($i+1)` past the end of `$HostArgs`
+     yields `@()` (not `$null`) once wrapped in `@(...)`, so the `$null -eq $RawArgs` branch does
+     *not* misfire on a legitimate no-argument invocation.
+   Every branch's effect on `$ArgsIntact` matches the intended fail-closed contract; I did not find a
+   path where the restructuring silently reintroduces the fail-open behavior or, conversely,
+   over-rejects a legitimate bare invocation.
+
+3. *Re-derivation of the `-is [string]` premise correction (IN-02).* Rather than accept the plan's
+   resolution note at face value, I re-derived why the clause is load-bearing in-session: PowerShell's
+   `-eq` operator, when its left operand is a collection, filters rather than compares. Passing a
+   single array-typed argument in-session, e.g. `& .\start_windows.ps1 @('-Build','x')`, makes
+   `$args[0]` the two-element array itself (since no formal parameter is declared to receive it), so
+   `$ScriptArgs.Count -eq 1` is true and `$ScriptArgs[0] -eq "-Build"` evaluates as
+   `@('-Build','x') -eq "-Build"`, which returns the non-empty array `@('-Build')` — truthy in a
+   boolean context — silently dropping the stray `'x'` element and accepting the invocation as a
+   clean `-Build`. This confirms the `-is [string]` guard genuinely prevents that specific
+   acceptance and is not dead weight; the corrected premise in the 05-06 resolution note holds.
+
+4. *Anchor-loop edge cases re-checked for new regressions the restructuring could have introduced*
+   (independent of the previously-documented, still-accepted residual risk around `pwsh`/junctions/
+   `subst` drives, which this diff does not touch and which I did not re-litigate): a `GetFullPath`
+   throw on a non-path host-argv token (e.g. `-File`) is still caught and treated as no-match, not a
+   crash; a spurious early match against an unrelated token would only ever produce a `$RawArgs` that
+   is a superset of the real trailing arguments, which fails the count check and rejects — it cannot
+   produce a false accept. No new bug found in this area introduced by the diff.
+
+5. *Comment accuracy.* Cross-checked each new/changed comment against the code it describes (the
+   fail-closed rationale, the unquoted-vs-quoted `-Foo:` distinction, the `-is [string]` rationale,
+   and the `stop_windows.ps1` cross-reference to `start_windows.ps1`). All match current code
+   behavior; none overstate or understate what the code does.
+
+**Conclusion:** No new BLOCKER, WARNING, or INFO findings against `scripts/start_windows.ps1` or
+`scripts/stop_windows.ps1` for this diff. This independently corroborates — via static trace rather
+than by re-running — the orchestrator's live dynamic verification recorded in the addendum at the
+end of the 2026-09-27 pass below.
+
+**Process aside (not a finding against the reviewed source files, noted for the record only):** this
+document's own YAML frontmatter, prior to this pass's edit, still reported the 2026-09-27 pass's raw
+counts (`critical: 1`, `warning: 2`, `info: 3`, `total: 6`, `status: issues_found`) even though every
+one of those six items carries a "Resolved by 05-06" annotation in the body immediately below. A
+downstream consumer that reads only the frontmatter (e.g. an `--auto` re-review gate keyed off
+`status`) would have read this file as having six outstanding issues when zero remained outstanding
+against the code. This pass's edit updates the frontmatter to reflect the current (2026-09-29) pass's
+own results, per this file's established convention of the top frontmatter block tracking the latest
+prepended pass — but the gap in the interim (2026-09-27 to now) between "body says resolved" and
+"frontmatter says issues_found" is worth someone's awareness if the same convention is relied upon
+again after a future resolution note is appended without a corresponding frontmatter refresh.
+
+---
 
 ## 2026-09-27 pass — 05-05's host-command-line cross-check (new bugs found)
 
@@ -63,7 +169,8 @@ in either file.
 > **Resolved by 05-06:** the cross-check now fails closed -- a `$null -eq $RawArgs`
 > branch inside the existing `$MyInvocation.Line` gate rejects when no host argv
 > token names this script, instead of trusting `$args` alone. See the resolution
-> paragraph at the end of this pass.
+> paragraph at the end of this pass. **Independently re-verified, 2026-09-29 pass
+> above: no regression found in this branch.**
 
 **File:** `scripts/stop_windows.ps1:39-70`
 **Issue:**
@@ -134,6 +241,8 @@ the pre-fix behavior. Apply the identical restructuring to `start_windows.ps1` (
 
 > **Resolved by 05-06:** the same fail-closed restructuring, applied identically
 > to `start_windows.ps1`. See the resolution paragraph at the end of this pass.
+> **Independently re-verified, 2026-09-29 pass above: no regression found in
+> this branch.**
 
 **File:** `scripts/start_windows.ps1:102-138`
 **Issue:** Identical structure and identical root cause to CR-01 above, in the sibling script: if
@@ -157,6 +266,8 @@ cross-check (before the existing `$Build = $false` line).
 > now wrap the cross-check in both files, and a byte-identity parity check
 > enforces that the two copies stay identical. Disposition (b), a dot-sourced
 > helper, was rejected. See the resolution paragraph at the end of this pass.
+> **Independently re-verified, 2026-09-29 pass above: the two marked blocks
+> were diffed directly and confirmed byte-identical.**
 
 **File:** `scripts/start_windows.ps1:102-129`, `scripts/stop_windows.ps1:39-66`
 **Issue:** The host-argv cross-check — the anchor-search loop, the try/catch around `GetFullPath`,
@@ -179,7 +290,9 @@ exchange for a single source of truth.
 
 > **Resolved by 05-06:** both files now use the ordinal
 > `EndsWith(":", [System.StringComparison]::Ordinal)` overload. See the
-> resolution paragraph at the end of this pass.
+> resolution paragraph at the end of this pass. **Independently re-verified,
+> 2026-09-29 pass above: confirmed present at the correct call site in both
+> files.**
 
 **File:** `scripts/start_windows.ps1:125`, `scripts/stop_windows.ps1:62`
 **Issue:** `$token.EndsWith(":")` uses the default (current-culture) overload of `String.EndsWith`,
@@ -195,7 +308,9 @@ US-locale machine (as this plan's grounding record documents).
 
 > **Resolved by 05-06:** premise corrected -- the clause is kept, not dropped,
 > because its "always true" premise is false in-session. See the resolution
-> paragraph at the end of this pass.
+> paragraph at the end of this pass. **Independently re-verified, 2026-09-29
+> pass above: re-derived the `@('-Build','x')` array-filtering scenario from
+> first principles and confirmed the clause is genuinely load-bearing.**
 
 **File:** `scripts/start_windows.ps1:133`
 **Issue:** `$ScriptArgs[0] -is [string]` is always true — `$args` elements from a real command-line
@@ -208,7 +323,8 @@ that could put non-string elements into `$ScriptArgs`, add a one-line comment sa
 
 > **Resolved by 05-06:** the start comment now distinguishes an unquoted
 > dangling colon token from a quoted one. See the resolution paragraph at the
-> end of this pass.
+> end of this pass. **Independently re-verified, 2026-09-29 pass above:
+> comment text checked against code behavior and found accurate.**
 
 **File:** `scripts/start_windows.ps1:100-101`, `scripts/stop_windows.ps1:37-38`
 **Issue:** The comment states "In-session, PowerShell's own parser refuses a dangling -Foo: before
