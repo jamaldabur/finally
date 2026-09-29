@@ -269,6 +269,28 @@ checks alone -- while consistent with the fix being correct -- are not the dynam
 checks, not only reasoned about from source"). See `05-06-SUMMARY.md` for the full accounting of
 what ran and what did not in this environment.
 
+**Addendum (orchestrator, post-merge):** After this plan's commits were merged from the isolated
+worktree back to `finally-gsd`, the orchestrator (running unsandboxed, with real `powershell.exe`
+access) executed every `<verify>` command from both Task 1 and Task 2 against the merged code,
+in order, against a real Docker daemon. All passed GREEN: the parse/ASCII/structural gates; both
+fault-injection matrices (anchor forced to miss via a mocked `GetCommandLineArgs()`) — the
+exact colon-token rows that used to reach the `.env` guard (start) or `docker` (stop) with
+`rc=0`/`docker_calls=1` now show `rc=1 usage=1` with the guard/daemon short-circuited; the live,
+non-mocked in-process runspace trigger — `runspace_start usage=1 env_guard=0` and
+`runspace_stop usage=1 docker_calls=0`, a real anchor-miss condition rejected correctly; every
+05-05 regression row (19-row start rejection matrix, three path forms, in-session including the
+`@('-Build','x')`/`@('-Build')` array rows, wrapper-hosted, pre-script `-:`, the 8-row stop shim
+matrix) unchanged from its recorded GREEN; `pwsh` confirmed still not installed
+(`PWSH_NOT_INSTALLED`); and the full live sequence against the real `finally` container and
+image — bare start (health ok), the two colon reproductions that 05-VERIFICATION.md's prior pass
+caught live (`start -Build:`/`-Foo:`/`-Build -Foo:` → `CONTAINER_AND_IMAGE_UNTOUCHED`; `stop
+-Foo:`/`-AnyName:` → `STILL_RUNNING_UNTOUCHED`), `-Build` rebuild and replacement, a repeated
+bare start no-op, a bare stop followed by a repeated no-op stop, the stopped-state reproduction
+(`stop -Foo:` rejected, `start -Build:` → `NOTHING_STARTED`), `DATA_INTACT`, the bash pair's
+unchanged validation, and `SCOPE_HELD`/`NON_DESTRUCTIVE`. This closes the dynamic-proof gap this
+paragraph flagged — the anchor-miss branch is now exercised by automated checks and a real live
+trigger, not only reasoned about from source, exactly as 05-VERIFICATION.md's gap required.
+
 ---
 
 ## 2026-09-24 pass — 05-04's argument-validation guard (scripts/start_windows.ps1, scripts/stop_windows.ps1)

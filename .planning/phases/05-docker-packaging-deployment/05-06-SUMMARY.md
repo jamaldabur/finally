@@ -384,18 +384,30 @@ configuration is required. The unresolved item is re-running this plan's PowerSh
 Limitation" above.
 
 ## Next Phase Readiness
-This closes out the tasks of Phase 5 Plan 06 (all three tasks executed, all three commits made),
-but **not** with the full dynamic proof the plan itself specifies as necessary. Before treating
-Phase 5's DEPLOY-03 gap as genuinely closed:
+This closes out the tasks of Phase 5 Plan 06 (all three tasks executed, all three commits made).
+
+**Update (orchestrator, post-merge):** Items 1-3 below have now been completed. After merging
+this plan's worktree branch into `finally-gsd`, the orchestrator (unsandboxed, with real
+`powershell.exe` access) ran every `<verify>` command from Task 1 and Task 2 against the merged
+code, against a real Docker daemon. All passed GREEN -- including both fault-injection matrices,
+the live non-mocked in-process runspace anchor-miss trigger (`runspace_start usage=1
+env_guard=0`, `runspace_stop usage=1 docker_calls=0`), every 05-05 regression row unchanged, and
+the full live Docker sequence (bare start, both colon reproductions with
+`CONTAINER_AND_IMAGE_UNTOUCHED`/`STILL_RUNNING_UNTOUCHED`, `-Build` rebuild/replace, repeated
+bare start no-op, double bare stop, the stopped-state reproduction with `NOTHING_STARTED`,
+`DATA_INTACT`, bash-pair validation unchanged, `SCOPE_HELD`/`NON_DESTRUCTIVE`). Full detail
+recorded in 05-REVIEW.md's "Addendum (orchestrator, post-merge)" note. The original numbered
+items are preserved below for the historical record of what this plan's own execution session
+could and could not prove:
+
 1. Re-run 05-06-PLAN.md's `<verify>` blocks (Tasks 1 and 2) against commits `a81da10`, `3d9034c`,
    and `9cbab6b` in an environment that can invoke `powershell.exe` -- ideally the same machine
    05-05's grounding record used (Windows PowerShell 5.1.26100.9444), so the pwsh-not-installed
-   status is directly comparable.
+   status is directly comparable. **DONE** -- see above.
 2. Only after that dynamic proof succeeds should `/gsd-secure-phase 05` be re-run to close T-05-08
-   and log T-05-19's accepted residual in 05-SECURITY.md's Accepted Risks Log.
-3. Only after that should 05-VERIFICATION.md be re-run to re-score truth 14.
-The orchestrator should treat this plan's completion as "code written and structurally
-self-consistent, docs updated" rather than "gap fully closed and dynamically proven."
+   and log T-05-19's accepted residual in 05-SECURITY.md's Accepted Risks Log. **Still pending** --
+   this is the orchestrator's next step.
+3. Only after that should 05-VERIFICATION.md be re-run to re-score truth 14. **Still pending.**
 
 ---
 *Phase: 05-docker-packaging-deployment*
