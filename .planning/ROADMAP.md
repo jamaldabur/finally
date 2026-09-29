@@ -175,7 +175,7 @@ Plans:
   3. Start/stop scripts exist for macOS/Linux (bash) and Windows (PowerShell), and running either repeatedly is safe (idempotent)
   4. `.env.example` is committed and documents `OPENROUTER_API_KEY`, `MASSIVE_API_KEY`, and `LLM_MOCK`
 
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans executed
 
 Plans:
 **Wave 1**
@@ -200,7 +200,7 @@ Plans:
 
 **Wave 6** *(gap closure — re-verification truth 14 / review 2026-09-27 CR-01+WR-01 (plus WR-02, IN-01, IN-02, IN-03) / T-05-08: 05-05's host-argv cross-check fails open when the anchor search finds no token naming the script under an empty `$MyInvocation.Line`; blocked on Wave 5)*
 
-- [ ] 05-06-PLAN.md — Gap closure CR-01/WR-01 (2026-09-27), T-05-08: make both PowerShell launchers fail closed when the host-argv anchor is not found, proven by fault injection, a live in-process runspace trigger (a real anchor-miss path found at plan time), 05-05's unchanged regression matrices and the verifier's live reproductions; fold in the ordinal colon test, parity markers with a byte-identity gate, the load-bearing `-is [string]` comment (IN-02 premise corrected) and the quoted/unquoted comment fix; record the resolutions in the review (wave 6)
+- [x] 05-06-PLAN.md — Gap closure CR-01/WR-01 (2026-09-27), T-05-08: make both PowerShell launchers fail closed when the host-argv anchor is not found, proven by fault injection, a live in-process runspace trigger (a real anchor-miss path found at plan time), 05-05's unchanged regression matrices and the verifier's live reproductions; fold in the ordinal colon test, parity markers with a byte-identity gate, the load-bearing `-is [string]` comment (IN-02 premise corrected) and the quoted/unquoted comment fix; record the resolutions in the review (wave 6)
 
 ### Phase 6: Test Coverage
 
@@ -245,5 +245,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Core Trading UI | 3/3 | Complete    | 2026-09-17 |
 | 3. AI Chat Copilot | 8/8 | Complete    | 2026-09-21 |
 | 4. Portfolio Visualization | 7/7 | Complete    | 2026-09-22 |
-| 5. Docker Packaging & Deployment | 5/5 | In Progress|  |
+| 5. Docker Packaging & Deployment | 6/6 | In Progress|  |
 | 6. Test Coverage | 6/6 | Complete    | 2026-09-29 |
