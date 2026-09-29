@@ -60,6 +60,11 @@ in either file.
 
 ### CR-01 (2026-09-27): Host-argv anchor match fails open in `stop_windows.ps1`, silently reproducing the exact colon-bypass this plan closes
 
+> **Resolved by 05-06:** the cross-check now fails closed -- a `$null -eq $RawArgs`
+> branch inside the existing `$MyInvocation.Line` gate rejects when no host argv
+> token names this script, instead of trusting `$args` alone. See the resolution
+> paragraph at the end of this pass.
+
 **File:** `scripts/stop_windows.ps1:39-70`
 **Issue:**
 The cross-check (lines 39-66) only ever *sets* `$RawArgs` when it finds a token in
@@ -127,6 +132,9 @@ the pre-fix behavior. Apply the identical restructuring to `start_windows.ps1` (
 
 ### WR-01 (2026-09-27): Same fail-open anchor-match gap in `start_windows.ps1` (lower severity: silently discards `-Build`, does not touch a running container)
 
+> **Resolved by 05-06:** the same fail-closed restructuring, applied identically
+> to `start_windows.ps1`. See the resolution paragraph at the end of this pass.
+
 **File:** `scripts/start_windows.ps1:102-138`
 **Issue:** Identical structure and identical root cause to CR-01 above, in the sibling script: if
 `$MyInvocation.Line` is empty but the loop at lines 106-117 never finds a host-argv token whose
@@ -144,6 +152,11 @@ different severities.
 cross-check (before the existing `$Build = $false` line).
 
 ### WR-02 (2026-09-27): The two ~28-line cross-check blocks are verbatim duplicates with no shared source
+
+> **Resolved by 05-06:** disposition (a) was taken -- BEGIN/END marker comments
+> now wrap the cross-check in both files, and a byte-identity parity check
+> enforces that the two copies stay identical. Disposition (b), a dot-sourced
+> helper, was rejected. See the resolution paragraph at the end of this pass.
 
 **File:** `scripts/start_windows.ps1:102-129`, `scripts/stop_windows.ps1:39-66`
 **Issue:** The host-argv cross-check — the anchor-search loop, the try/catch around `GetFullPath`,
@@ -164,6 +177,10 @@ exchange for a single source of truth.
 
 ### IN-01 (2026-09-27): Culture-sensitive `EndsWith` used for a security-relevant literal-colon check
 
+> **Resolved by 05-06:** both files now use the ordinal
+> `EndsWith(":", [System.StringComparison]::Ordinal)` overload. See the
+> resolution paragraph at the end of this pass.
+
 **File:** `scripts/start_windows.ps1:125`, `scripts/stop_windows.ps1:62`
 **Issue:** `$token.EndsWith(":")` uses the default (current-culture) overload of `String.EndsWith`,
 rather than an ordinal comparison. For a single ASCII `:` this is very unlikely to misbehave under
@@ -176,6 +193,10 @@ US-locale machine (as this plan's grounding record documents).
 
 ### IN-02 (2026-09-27): Redundant runtime type-check on `$ScriptArgs[0]`
 
+> **Resolved by 05-06:** premise corrected -- the clause is kept, not dropped,
+> because its "always true" premise is false in-session. See the resolution
+> paragraph at the end of this pass.
+
 **File:** `scripts/start_windows.ps1:133`
 **Issue:** `$ScriptArgs[0] -is [string]` is always true — `$args` elements from a real command-line
 invocation are always `[string]`; this cannot be a non-string here. It is harmless dead-weight in
@@ -184,6 +205,10 @@ the condition but adds a clause a future reader has to reason about for no behav
 that could put non-string elements into `$ScriptArgs`, add a one-line comment saying so.
 
 ### IN-03 (2026-09-27): Comment doesn't distinguish the quoted vs. unquoted in-session `-Foo:` cases it describes
+
+> **Resolved by 05-06:** the start comment now distinguishes an unquoted
+> dangling colon token from a quoted one. See the resolution paragraph at the
+> end of this pass.
 
 **File:** `scripts/start_windows.ps1:100-101`, `scripts/stop_windows.ps1:37-38`
 **Issue:** The comment states "In-session, PowerShell's own parser refuses a dangling -Foo: before
@@ -195,6 +220,54 @@ grounding record) could reasonably conclude the code's colon check is redundant 
 cases, when it is actually load-bearing for the quoted case.
 **Fix:** Add "(unquoted)" after "a dangling -Foo:" in both comments to make the distinction explicit
 in-line, without needing to cross-reference the plan document.
+
+**Resolution (05-06-PLAN.md):** (a) The fix of record. CR-01's three-way decision now sits inside
+each launcher's single `$MyInvocation.Line` gate: a `$null -eq $RawArgs` test rejects, a count
+mismatch rejects, and otherwise an ordinal trailing-colon test runs
+(`EndsWith(":", [System.StringComparison]::Ordinal)`, closing IN-01 too). So under an empty
+`$MyInvocation.Line` the launchers now fail closed instead of trusting `$args` alone. This reverses
+05-05's fail-open choice (its A6 and T-05-19). Verified structurally in the execution environment
+available to this plan's executor: ASCII-only, the single-assignment/single-test structural gates
+(one `$ArgsIntact = $true`, one `$null -eq $RawArgs` test, no remaining `$null -ne $RawArgs` test,
+one `MyInvocation.Line` reference, one `GetCommandLineArgs()` read, the fail-closed branch shape),
+the WR-03 counts unchanged (start 6/6, stop 1/1), guard-before-`.env`/`docker info` ordering, and a
+byte-identity `CODE_IDENTICAL`/`BLOCKS_IDENTICAL` parity check between the two files' cross-check
+blocks. (b) A finding the review's premise missed. An empty `$MyInvocation.Line` does not mean
+"definitely -File". An in-process runspace (`[powershell]::Create().AddCommand(...)`) and
+`Start-Job -FilePath` also leave it empty, with no host argv token naming the script. The runspace
+case was a live anchor-miss trigger reproduced on the plan-time probe machine, and those hosts are
+now refused even for a bare invocation -- this is the accepted residual T-05-19. `Start-Job -FilePath`
+never reached step 1 anyway, because `$PSScriptRoot` is empty in a job and the `$RepoRoot` line
+throws first (pre-existing, unchanged); the documented workaround remains in-session invocation.
+(c) IN-02's premise holds under -File only. In-session, `$ScriptArgs[0] -is [string]` is
+load-bearing: without it, an in-session `@('-Build','x')` argument would be accepted as `-Build` via
+PowerShell's array-filtering `-eq`, with the stray element silently dropped. The clause is kept and
+commented, not dropped. (d) WR-02's disposition. Disposition (a) was taken: BEGIN/END marker
+comments plus a byte-identity parity check, in both files. Disposition (b), a dot-sourced helper,
+was rejected, because inside a dot-sourced file `$args`, `$MyInvocation.Line` and `$PSCommandPath`
+belong to the helper rather than the caller, so the cross-check would silently stop working. (e)
+IN-03. The start comment now distinguishes an unquoted dangling colon token, refused by PowerShell's
+own parser, from a quoted one, which reaches `$args` and is rejected by the exact-match code.
+(f) What remains, stated plainly rather than silently assumed complete. `pwsh` 7 is still unprobed
+on the plan-time machine; a conditional `pwsh` row is included in this plan's verify blocks and
+prints `PWSH_NOT_INSTALLED` wherever `pwsh` is absent, and would need to actually run wherever
+`pwsh` is installed. More significantly: this plan's implementation pass ran inside a sandboxed,
+worktree-isolated executor agent whose Bash tool categorically refused every invocation of
+`powershell.exe` it attempted (a plain `-Command`, an `-ExecutionPolicy Bypass -File` invocation,
+and a bare `-File` invocation were each denied by the harness's own safety classifier; disabling
+the sandbox was separately denied). As a result, the PowerShell parse check, the fault-injection
+matrices, the live in-process runspace anchor-miss trigger, the full 05-05 regression matrices, and
+the entire live Docker sequence described in this plan's `<verify>` blocks were **not executed** as
+part of this resolution, even though the code changes were written to satisfy them exactly (CR-01's
+own fix sketch, applied identically to both files, byte-identical between the BEGIN/END markers).
+Closing T-05-08 and logging T-05-19's accepted residual in 05-SECURITY.md is left to re-running
+`/gsd-secure-phase 05`, and re-scoring truth 14 is left to re-verification -- but both of those now
+additionally depend on someone (a human, or an agent outside this sandbox restriction) actually
+running this plan's `<verify>` blocks against the committed scripts first, since the structural
+checks alone -- while consistent with the fix being correct -- are not the dynamic proof
+05-VERIFICATION.md's gap explicitly required ("the anchor-miss branch is exercised by automated
+checks, not only reasoned about from source"). See `05-06-SUMMARY.md` for the full accounting of
+what ran and what did not in this environment.
 
 ---
 

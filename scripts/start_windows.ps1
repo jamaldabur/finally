@@ -97,10 +97,23 @@ function Remove-FinallyContainer {
 # empty; in-session it holds the calling line. In that case, the tokens
 # after this script's own path in the host argv are what the caller
 # typed. A raw token ending in a colon, or a raw count that differs from
-# $args, means a token was swallowed. In-session, PowerShell's own parser
-# refuses a dangling -Foo: before this script runs.
+# $args, means a token was swallowed. An unquoted dangling -Foo: is
+# refused by PowerShell's parser before this script runs; a quoted
+# '-Foo:' reaches $args and is rejected by the exact match below.
+#
+# When $MyInvocation.Line is empty but no host argv token resolves to
+# this script's own path, the caller's raw tokens cannot be recovered, so
+# the invocation is rejected instead of being trusted to $args alone - it
+# fails closed (05-REVIEW.md CR-01/WR-01, 2026-09-27 pass; 05-06-PLAN.md).
+# The command API also leaves $MyInvocation.Line empty, as with an
+# in-process runspace or a background job, and no argv token names the
+# script there, so those hosts are refused too. The workaround: run the
+# script from a PowerShell prompt or with the call operator
+# (& .\scripts\start_windows.ps1), where $args is the complete record.
+# BEGIN host-argv cross-check: keep this block identical in start_windows.ps1 and stop_windows.ps1
 $ScriptArgs = @($args)
 $RawArgs = $null
+$ArgsIntact = $true
 if ([string]::IsNullOrEmpty($MyInvocation.Line)) {
     $HostArgs = [Environment]::GetCommandLineArgs()
     for ($i = 1; $i -lt $HostArgs.Count; $i++) {
@@ -115,22 +128,33 @@ if ([string]::IsNullOrEmpty($MyInvocation.Line)) {
             break
         }
     }
-}
-$ArgsIntact = $true
-if ($null -ne $RawArgs) {
-    if ($RawArgs.Count -ne $ScriptArgs.Count) {
+    if ($null -eq $RawArgs) {
+        # No host argv token names this script's own path, so the
+        # caller's raw tokens cannot be recovered. Fail closed instead of
+        # trusting $args alone (05-REVIEW.md CR-01, 2026-09-27 pass).
         $ArgsIntact = $false
-    }
-    foreach ($token in $RawArgs) {
-        if ($token.EndsWith(":")) {
-            $ArgsIntact = $false
+    } elseif ($RawArgs.Count -ne $ScriptArgs.Count) {
+        $ArgsIntact = $false
+    } else {
+        foreach ($token in $RawArgs) {
+            if ($token.EndsWith(":", [System.StringComparison]::Ordinal)) {
+                $ArgsIntact = $false
+            }
         }
     }
 }
+# END host-argv cross-check
 $Build = $false
 if ($ArgsIntact -and $ScriptArgs.Count -eq 0) {
     # accept - no argument
 } elseif ($ArgsIntact -and $ScriptArgs.Count -eq 1 -and $ScriptArgs[0] -is [string] -and $ScriptArgs[0] -eq "-Build") {
+    # -is [string] is load-bearing, not dead weight (05-REVIEW.md IN-02,
+    # 2026-09-27 pass, premise corrected). In-session a caller can pass a
+    # typed argument, and -eq with an array on its left filters instead
+    # of comparing: without this clause an in-session
+    # @('-Build','x') argument would be accepted as -Build, with the
+    # stray element silently dropped. The "always a string" premise holds
+    # under -File only.
     $Build = $true
 } else {
     [Console]::Error.WriteLine("Usage: start_windows.ps1 [-Build]")
