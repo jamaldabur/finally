@@ -99,8 +99,19 @@ function Remove-FinallyContainer {
 # typed. A raw token ending in a colon, or a raw count that differs from
 # $args, means a token was swallowed. In-session, PowerShell's own parser
 # refuses a dangling -Foo: before this script runs.
+#
+# When $MyInvocation.Line is empty but no host argv token resolves to
+# this script's own path, the caller's raw tokens cannot be recovered, so
+# the invocation is rejected instead of being trusted to $args alone - it
+# fails closed (05-REVIEW.md CR-01/WR-01, 2026-09-27 pass; 05-06-PLAN.md).
+# The command API also leaves $MyInvocation.Line empty, as with an
+# in-process runspace or a background job, and no argv token names the
+# script there, so those hosts are refused too. The workaround: run the
+# script from a PowerShell prompt or with the call operator
+# (& .\scripts\start_windows.ps1), where $args is the complete record.
 $ScriptArgs = @($args)
 $RawArgs = $null
+$ArgsIntact = $true
 if ([string]::IsNullOrEmpty($MyInvocation.Line)) {
     $HostArgs = [Environment]::GetCommandLineArgs()
     for ($i = 1; $i -lt $HostArgs.Count; $i++) {
@@ -115,15 +126,18 @@ if ([string]::IsNullOrEmpty($MyInvocation.Line)) {
             break
         }
     }
-}
-$ArgsIntact = $true
-if ($null -ne $RawArgs) {
-    if ($RawArgs.Count -ne $ScriptArgs.Count) {
+    if ($null -eq $RawArgs) {
+        # No host argv token names this script's own path, so the
+        # caller's raw tokens cannot be recovered. Fail closed instead of
+        # trusting $args alone (05-REVIEW.md CR-01, 2026-09-27 pass).
         $ArgsIntact = $false
-    }
-    foreach ($token in $RawArgs) {
-        if ($token.EndsWith(":")) {
-            $ArgsIntact = $false
+    } elseif ($RawArgs.Count -ne $ScriptArgs.Count) {
+        $ArgsIntact = $false
+    } else {
+        foreach ($token in $RawArgs) {
+            if ($token.EndsWith(":")) {
+                $ArgsIntact = $false
+            }
         }
     }
 }

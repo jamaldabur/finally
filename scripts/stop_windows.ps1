@@ -35,9 +35,12 @@ function Invoke-Docker {
 # (see step 1 of start_windows.ps1). $args alone also misses a
 # colon-suffixed token the -File parser drops before this script runs, so
 # the host command line is cross-checked too - see step 1 of
-# start_windows.ps1 for the rationale.
+# start_windows.ps1 for the rationale. If the cross-check cannot find
+# this script's own path in the host command line, the invocation is
+# rejected (fail closed) - see step 1 of start_windows.ps1.
 $ScriptArgs = @($args)
 $RawArgs = $null
+$ArgsIntact = $true
 if ([string]::IsNullOrEmpty($MyInvocation.Line)) {
     $HostArgs = [Environment]::GetCommandLineArgs()
     for ($i = 1; $i -lt $HostArgs.Count; $i++) {
@@ -52,15 +55,18 @@ if ([string]::IsNullOrEmpty($MyInvocation.Line)) {
             break
         }
     }
-}
-$ArgsIntact = $true
-if ($null -ne $RawArgs) {
-    if ($RawArgs.Count -ne $ScriptArgs.Count) {
+    if ($null -eq $RawArgs) {
+        # No host argv token names this script's own path, so the
+        # caller's raw tokens cannot be recovered. Fail closed instead of
+        # trusting $args alone (05-REVIEW.md CR-01, 2026-09-27 pass).
         $ArgsIntact = $false
-    }
-    foreach ($token in $RawArgs) {
-        if ($token.EndsWith(":")) {
-            $ArgsIntact = $false
+    } elseif ($RawArgs.Count -ne $ScriptArgs.Count) {
+        $ArgsIntact = $false
+    } else {
+        foreach ($token in $RawArgs) {
+            if ($token.EndsWith(":")) {
+                $ArgsIntact = $false
+            }
         }
     }
 }
