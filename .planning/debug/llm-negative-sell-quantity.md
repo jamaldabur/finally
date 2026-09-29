@@ -3,6 +3,10 @@ status: diagnosed
 trigger: "when I tell the chat sell 2 AAPL, I get '✕ sell -2 AAPL — Invalid quantity: -2.0'"
 created: 2026-09-21T15:00:00Z
 updated: 2026-09-21T16:20:00Z
+audit_acknowledged:
+  milestone: v1.0
+  at: 2026-09-29
+  status: diagnosed
 ---
 
 ## Current Focus

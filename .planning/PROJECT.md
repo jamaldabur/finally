@@ -1,5 +1,11 @@
 # FinAlly — AI Trading Workstation
 
+## Current State
+
+**v1.0 MVP shipped 2026-09-29.** 6 phases, 34 plans, 76 tasks, 269 files changed (~58,400 insertions) over 2026-09-12 → 2026-09-29. All 40/40 v1 requirements validated; 231 backend + 111 frontend unit tests and a 13-spec Playwright E2E suite all green. Full record: `.planning/MILESTONES.md`, `.planning/milestones/v1.0-ROADMAP.md`, `.planning/milestones/v1.0-REQUIREMENTS.md`.
+
+The full agentic trading loop works end-to-end: a user watches live streaming prices, places trades (or has the AI chat copilot place them), and sees the result reflected across the watchlist, positions table, heatmap, and P&L chart — all served from one Docker container on port 8000.
+
 ## What This Is
 
 FinAlly is a visually stunning, AI-powered trading workstation — a browser-based capstone project for an agentic AI coding course. It streams live (simulated or real) market data, lets a single user trade a simulated $10,000 portfolio with instant market-order fills, and integrates an LLM chat assistant that can analyze the user's portfolio and execute trades and watchlist changes on their behalf. It looks and feels like a modern Bloomberg terminal with an AI copilot, ships as a single Docker container on one port, and is itself built entirely by orchestrated coding agents.
@@ -7,6 +13,8 @@ FinAlly is a visually stunning, AI-powered trading workstation — a browser-bas
 ## Core Value
 
 A user can watch live prices, trade a simulated portfolio, and have an AI copilot execute trades on their behalf — the full agentic trading loop (watch → decide → chat → execute → see it reflected in the portfolio) must work end-to-end.
+
+**Confirmed still the right priority at v1.0 close** — every phase's own verification exercised this exact loop, and the E2E suite proves it end-to-end against the real production Docker image.
 
 ## Requirements
 
@@ -48,7 +56,7 @@ A user can watch live prices, trade a simulated portfolio, and have an AI copilo
 
 ### Active
 
-- [ ] Fix `frontend/lib/chatStore.tsx`'s `sendMessage()`: `crypto.randomUUID()` is called before its own try block and throws under any non-secure-context origin (plain HTTP on a non-localhost host), breaking chat entirely with no visible error — found via Phase 6's E2E harness, tracked as `.planning/WINDOWS.md` #2 (open), out of Phase 6's own scope to fix (test-only phase boundary)
+All v1 requirements shipped — see Next Milestone Goals below for carried-forward work.
 
 ### Out of Scope
 
@@ -59,6 +67,17 @@ A user can watch live prices, trade a simulated portfolio, and have an AI copilo
 - WebSockets — SSE covers the one-way price-push need with less complexity
 - Cloud deployment (Terraform/App Runner) — stretch goal per PLAN.md §11, not core v1
 
+## Next Milestone Goals
+
+Carried forward from v1.0, not required for the core agentic trading loop but worth addressing before any real (non-localhost) deployment or further UI polish:
+
+- [ ] Fix `frontend/lib/chatStore.tsx`'s `sendMessage()`: `crypto.randomUUID()` is called before its own try block and throws under any non-secure-context origin (plain HTTP on a non-localhost host), breaking chat entirely with no visible error. Found via Phase 6's E2E harness; `.planning/milestones/v1.0-phases/06-test-coverage/` for detail.
+- [ ] Decide on the live-drop SSE reconnect test (`context.setOffline` cannot interrupt an already-open SSE stream in this Chromium/CDP) — accept as a permanent environment limitation (the suite's other reconnect test already proves the same `EventSource` retry capability) or retarget to a container-level disconnection technique.
+- [ ] `PnlHistoryChart.tsx`'s time-scaled axis renders two same-`recorded_at` snapshot points as a vertical spike rather than a labeled data event (Phase 4 advisory, unfixed by design).
+- [ ] `get_snapshots()`/`_get_snapshots_sync` trust the route's `Query(ge=1,le=MAX_SNAPSHOT_LIMIT)` validation rather than bounding `limit` themselves — a future non-route caller passing a negative limit would reopen unbounded-row behavior (Phase 4 advisory, unfixed by design).
+- [ ] pwsh (PowerShell 7) remains unprobed for the Windows launcher scripts' argument guard — only Windows PowerShell 5.1 is installed on the development machine. The guard's own `<verify>` blocks already include a conditional pwsh row that will exercise this the moment pwsh becomes available.
+- [ ] `run_portfolio_snapshot_loop`'s 30s background recorder doesn't hold `portfolio_lock`, unlike the on-trade snapshot insert — a trade racing the recorder's read could record a torn `total_value` (Phase 1 advisory, narrow window, no test covers it).
+
 ## Context
 
 - This is a brownfield GSD bootstrap: the codebase already contains a working market data layer (~40-50% of PLAN.md complete per `.planning/codebase/CONCERNS.md`), built pre-GSD across commits up through `12782cf`/`8375047`.
@@ -66,6 +85,7 @@ A user can watch live prices, trade a simulated portfolio, and have an AI copilo
 - `.planning/codebase/` (ARCHITECTURE.md, STACK.md, CONCERNS.md, CONVENTIONS.md, INTEGRATIONS.md, STRUCTURE.md, TESTING.md) documents the current as-built state and known gaps/tech debt; `CONCERNS.md` in particular enumerates every missing piece (full DB schema, all non-health/stream routes, LLM integration, entire frontend, Docker/deployment, E2E tests) — that list is effectively the seed for this milestone's Active requirements.
 - Known minor tech debt to be aware of but not required to fix in this milestone: synchronous SQLite calls wrapped in `asyncio.to_thread`, no connection pooling, inline (non-file) schema definitions, broad exception handling in the market update loop. Acceptable at current single-user demo scale per the codebase audit.
 - Backend is a `uv`-managed Python 3.12 / FastAPI project; frontend does not exist yet and will be a fresh Next.js TypeScript project using static export.
+- **At v1.0 close:** backend is FastAPI/Python 3.12 (231 pytest tests), frontend is Next.js 16 App Router + Tailwind v4 + Recharts (111 Vitest/RTL tests), packaged as one multi-stage Docker image (Node build → Python runtime) on port 8000 with a bind-mounted SQLite `db/`. E2E coverage (13 Playwright specs) runs against that real production image via its own `docker-compose.test.yml`.
 
 ## Constraints
 
@@ -79,11 +99,11 @@ A user can watch live prices, trade a simulated portfolio, and have an AI copilo
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Treat `planning/PLAN.md` as the binding spec; this GSD cycle scopes/sequences work rather than re-deciding architecture | PLAN.md is already exhaustive and pre-approved; re-litigating it would waste the detailed prior design work | — Pending |
-| Single v1 milestone covering the full remainder of PLAN.md (portfolio, chat, frontend, Docker, tests) | Scope is already tightly bounded by PLAN.md; splitting into multiple milestones would add process overhead without a clear natural cut point | — Pending |
+| Treat `planning/PLAN.md` as the binding spec; this GSD cycle scopes/sequences work rather than re-deciding architecture | PLAN.md is already exhaustive and pre-approved; re-litigating it would waste the detailed prior design work | ✓ Validated — all 6 phases shipped against PLAN.md's architecture/schema/API/LLM/frontend/Docker/testing spec without re-litigating any of it |
+| Single v1 milestone covering the full remainder of PLAN.md (portfolio, chat, frontend, Docker, tests) | Scope is already tightly bounded by PLAN.md; splitting into multiple milestones would add process overhead without a clear natural cut point | ✓ Validated — shipped as one 6-phase v1.0 milestone; no natural mid-milestone cut point ever emerged |
 | Structure roadmap as a Vertical MVP (thin end-to-end slice first, then layer in visualization/AI/packaging) rather than Horizontal Layers | Gets a demoable trade-execution loop working early against the already-live market data stream, reducing integration risk versus building all layers in parallel and wiring at the end | ✓ Validated by Phase 1 — walking-skeleton tracer (one BUY order, full stack) landed first and every later plan/task extended it without rework |
 | Keep inline `_SCHEMA` constants per `app/db/*.py` module (mirroring the existing `watchlist.py` pattern) rather than extracting to a `backend/schema/` directory as root PLAN.md §4 anticipates | All five new tables needed to ship fast behind a single shared `_connect()`/`DB_PATH`; extracting a schema layer now would be a pure refactor with no behavior change and no phase currently blocked on it | Phase 1 — kept inline; revisit only if a future phase actually needs schema/migration tooling |
-| `execute_trade()` trusts its caller for `quantity > 0` and `side ∈ {"buy","sell"}` rather than re-validating internally | Plan 01 scoped it as the trade route's backing function only; Pydantic at the HTTP layer was assumed sufficient | Phase 1 — flagged as a gap by code review (WR-01/WR-02) once Phase 3's direct-call chat flow was considered; added to Active requirements, not yet fixed |
+| `execute_trade()` trusts its caller for `quantity > 0` and `side ∈ {"buy","sell"}` rather than re-validating internally | Plan 01 scoped it as the trade route's backing function only; Pydantic at the HTTP layer was assumed sufficient | ✓ Validated — flagged as a gap by Phase 1 code review (WR-01/WR-02) once Phase 3's direct-call chat flow was considered; fixed in Phase 3 (03-01 Task 3) |
 | Defer all frontend automated testing (Vitest/React Testing Library) to Phase 6, verify Phase 2 entirely by manual browser UAT instead | Introducing a test framework mid-phase for a single wave of UI work would add setup cost without a second consumer yet; Phase 6 (`TEST-04`) already owns frontend test infra project-wide | ✓ Validated by Phase 2 — `workflow.human_verify_mode: end-of-phase` deferred every `<human-check>` to one end-of-phase UAT batch (8 items), all passed with 0 issues; Nyquist validation confirmed manual-by-design is not a coverage gap |
 | Client-side price-cell flash triggers on the cell's own last-rendered price (a `useRef`), never on the SSE tick's `previous_price` field | `PriceCache.update()` keeps `previous_price` stale-but-different forever after the first real move on an unchanged-price heartbeat, so a `previous_price`-based trigger would flash on every 0.5s heartbeat forever | ✓ Validated by Phase 2 — verified correct by code review, phase verification, and live 20+-second UAT observation (test 5) |
 | Use `openrouter/openrouter/free` instead of root PLAN.md §9's specified `openrouter/openai/gpt-oss-120b` | The specified model returned HTTP 402 (insufficient credits) on the very first live call; the free router was the only working path | ✓ Validated by Phase 3 — user-approved Rule 4 deviation (03-01-SUMMARY.md), re-confirmed and hardened around (not reverted) by every later gap-closure plan (03-06 failover, 03-08 sign-convention prompting) |
@@ -113,4 +133,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-29 after Phase 5*
+*Last updated: 2026-09-29 after v1.0 milestone close*

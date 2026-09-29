@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 06
-current_phase_name: Test Coverage
-status: milestone_complete
+status: Awaiting next milestone
 stopped_at: All 6 phases complete — milestone ready to close
-last_updated: "2026-09-29T11:24:29.781Z"
+last_updated: "2026-09-29T11:58:06.010Z"
 last_activity: 2026-09-29
-last_activity_desc: Phase 05 complete (6/6 plans, 14/14 must-haves verified) — all 6 milestone phases now done
-state_head: 5873345ed24b4b722dd7dac944fbcaab1eb1b5da
+last_activity_desc: Milestone v1.0 completed and archived
+state_head: 8f2d07b685af20bf1d0890908194d213605f61f1
 progress:
   total_phases: 6
   completed_phases: 6
   total_plans: 34
   completed_plans: 34
   percent: 100
+current_phase: 06
+current_phase_name: Test Coverage
 ---
 
 # Project State
@@ -27,12 +27,10 @@ See: .planning/PROJECT.md (updated 2026-09-29)
 
 ## Current Position
 
-Phase: 06 — Test Coverage (last phase; already complete)
-Plan: All 34/34 plans across 6 phases complete
-Status: Milestone complete, not yet formally closed
-Last activity: 2026-09-29 — Phase 05 finished its own delayed transition (6/6 plans, DEPLOY-01..04 all verified); this was the last phase blocking milestone close
-
-Progress: [██████████] 100%
+Phase: Milestone v1.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-09-29 — Milestone v1.0 completed and archived
 
 ## Performance Metrics
 
@@ -181,16 +179,28 @@ None yet.
 - [Phase 4] Three non-blocking advisories from 04-REVIEW.md (gap-closure round) remain unfixed by design: `PnlHistoryChart.tsx`'s time-scaled axis has no explicit handling for two same-`recorded_at` points (a documented, tested legitimate occurrence in `portfolio_snapshots.py`) — renders as a vertical spike rather than a data error; the docblock's "a chart that visibly fails is better than one that quietly omits a value" claim doesn't match `formatAxisTime`'s actual silent-blank behavior on non-finite values; `get_snapshots()`/`_get_snapshots_sync` trust the route's `Query(ge=1,le=MAX_SNAPSHOT_LIMIT)` validation rather than bounding `limit` themselves, so a future direct (non-route) caller passing a negative limit would reopen G-04-4 via SQLite's negative-LIMIT-means-unbounded behavior. contradict a roadmap success criterion.
 - [Phase 06] .planning/WINDOWS.md entry 1: live-drop SSE reconnect E2E test (test/specs/06-sse-reconnect.spec.ts) deterministically fails in this Chromium — context.setOffline() doesn't interrupt an already-open SSE stream. Unreachable-at-load test independently proves the same retry capability. Needs a human decision: accept as environment limitation, or retarget technique.
 - [Phase 06] .planning/WINDOWS.md entry 2: `frontend/lib/chatStore.tsx`'s `sendMessage()` calls `crypto.randomUUID()` before its own try block, which throws under any non-secure-context origin (plain HTTP on a non-localhost host) and breaks chat entirely with no visible error. Found via Phase 6's E2E harness; out of Phase 6's own scope to fix (test-only phase boundary). Worth a real fix (e.g. a manual UUID fallback) before any real, non-localhost deployment.
+
 ## Deferred Items
 
 Items acknowledged and deferred at milestone close, most recent first:
 
 | Category | Item | Status | Deferred At | Milestone |
 |----------|------|--------|-------------|-----------|
-| *(none)* | | | | |
+| debug_sessions | chat-panel-collapse-toggle | diagnosed (resolved by 03-05, never marked closed) | 2026-09-29 | v1.0 |
+| debug_sessions | collapsed-rail-vertical-label | diagnosed (resolved by 03-07, never marked closed) | 2026-09-29 | v1.0 |
+| debug_sessions | heatmap-tile-pct-label-missing | diagnosed (resolved by 04-06, never marked closed) | 2026-09-29 | v1.0 |
+| debug_sessions | keyboard-activation-watchlist-row | diagnosed (resolved by 04-05, never marked closed) | 2026-09-29 | v1.0 |
+| debug_sessions | llm-negative-sell-quantity | diagnosed (resolved by 03-08, never marked closed) | 2026-09-29 | v1.0 |
+| debug_sessions | llm-raw-garbage-as-message | diagnosed (resolved by 03-06, never marked closed) | 2026-09-29 | v1.0 |
+| debug_sessions | portfolio-value-chart-busy | diagnosed (resolved by 04-07, never marked closed) | 2026-09-29 | v1.0 |
+| debug_sessions | sell-side-case-sensitivity | diagnosed (false alarm — code at HEAD confirmed correct) | 2026-09-29 | v1.0 |
 
 ## Session Continuity
 
 Last session: 2026-09-29T00:00:00.000Z
 Stopped at: All 6 phases complete (Phase 05 was the last one still open — closed via gap-closure plan 05-06 plus a full re-verification chain: orchestrator live dynamic proof, security auditor, code reviewer, phase verifier, all independent). Milestone ready to close.
 Resume file: None
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

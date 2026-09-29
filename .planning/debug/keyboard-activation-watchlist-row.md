@@ -3,6 +3,10 @@ status: diagnosed
 trigger: "keyboard activation doesn't work, the little graph of stocks in watchlist is broken"
 created: 2026-09-22T01:00:00Z
 updated: 2026-09-22T01:45:00Z
+audit_acknowledged:
+  milestone: v1.0
+  at: 2026-09-29
+  status: diagnosed
 ---
 
 ## Current Focus

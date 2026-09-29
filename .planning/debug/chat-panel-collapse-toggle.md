@@ -3,6 +3,10 @@ status: diagnosed
 trigger: "UAT G-03-1 + G-03-2: 'the collapse of the AI assistant isn't working well' / 'collapse/expand feels broken and the collapsed rail is hard to notice/find; requesting a design change to the collapse control (add a clear expand/collapse affordance, e.g. a chevron icon, hover feedback, and a smoother transition)'"
 created: 2026-09-20T00:00:00Z
 updated: 2026-09-20T00:00:00Z
+audit_acknowledged:
+  milestone: v1.0
+  at: 2026-09-29
+  status: diagnosed
 ---
 
 ## Current Focus

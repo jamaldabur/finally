@@ -3,6 +3,10 @@ status: diagnosed
 trigger: "With LLM_MOCK unset (real OpenRouter path, model = openrouter/openrouter/free), user typed 'sell 2 AAPL' into chat and the assistant's displayed message was: 'Invalid placeholder, avoid outputting non-JSON text when schema is required.' — not a real answer, not the app's own generic fallback text, but what reads like a leaked schema-enforcement instruction string."
 created: 2026-09-20T21:05:00Z
 updated: 2026-09-20T21:05:00Z
+audit_acknowledged:
+  milestone: v1.0
+  at: 2026-09-29
+  status: diagnosed
 ---
 
 ## Current Focus

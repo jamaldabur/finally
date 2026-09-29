@@ -3,6 +3,10 @@ status: diagnosed
 trigger: "I don't see % on all stocks in heatmap (I don't see it on NVDA)"
 created: 2026-09-22T01:10:00Z
 updated: 2026-09-22T01:45:00Z
+audit_acknowledged:
+  milestone: v1.0
+  at: 2026-09-29
+  status: diagnosed
 ---
 
 ## Current Focus

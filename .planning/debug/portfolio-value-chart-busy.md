@@ -3,6 +3,10 @@ status: diagnosed
 trigger: "G-04-4 (UAT test 4): the Portfolio Value graph is a little bit busy (maybe the line is bold, idk, fix it)"
 created: 2026-09-22T02:00:00Z
 updated: 2026-09-22T09:20:00Z
+audit_acknowledged:
+  milestone: v1.0
+  at: 2026-09-29
+  status: diagnosed
 ---
 
 ## Current Focus
